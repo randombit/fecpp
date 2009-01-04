@@ -1,0 +1,9 @@
+
+ - Generate a full set of tests (KATs?)
+ - Figure out zfec's file encoding layout
+ - Write a zfec-interoperable encoder/decoder program
+ - Write benchmark suite across range of parameters
+    - Generating a gnuplot file for comparisons
+ - Convert to C++ class(es) (using zfec's Python API as design base?)
+ - Profile, optimize
+ - x86-64 inline asm?
