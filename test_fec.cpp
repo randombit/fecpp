@@ -222,7 +222,7 @@ if (0) {
 	test_decode(code, kk, ixs, SZ, "0 = 1 (error expected)");
 	}
 
-if (0)
+if (1)
 	for (i= lim-1 ; i >= kk ; i--) {
 	    int j ;
 	    for (j=0; j<KK; j++) ixs[j] = kk - j ;
@@ -230,7 +230,7 @@ if (0)
 	    test_decode(code, kk, ixs, SZ, "0 = big");
 	}
 
-if (0)
+if (1)
 	for (i= lim - kk ; i >= 0 && i>= lim - kk - 4 ; i--) {
 	    int j ;
 	    for (j=0; j<kk; j++)

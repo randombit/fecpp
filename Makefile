@@ -1,6 +1,6 @@
 
 CC=g++
-CFLAGS=-O2 -DGF_BITS=8 -Wall -Wextra
+CFLAGS=-O0 -g -DGF_BITS=8 -Wall -Wextra
 
 test_fec: test_fec.o libfecpp.a
 	$(CC) $(CFLAGS) test_fec.o -L. -lfecpp -o test_fec
