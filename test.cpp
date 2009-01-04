@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "fec.h"
+#include "fecpp.h"
 
 /*
  * compatibility stuff
@@ -58,7 +58,7 @@ typedef unsigned short u_short ;
 u_long ticks[10];	/* vars for timekeeping */
 
 void *
-my_malloc(int sz, char *s)
+my_malloc(int sz, const char *s)
 {
     void *p = malloc(sz) ;
     if (p != NULL)
@@ -66,24 +66,6 @@ my_malloc(int sz, char *s)
     fprintf(stderr, "test: malloc failure for %d bytes in <%s>\n",
 	sz, s);
     exit(1);
-}
-int
-pr_matrix(void *m1, int rows, int cols, char *s)
-{
-    int r, c;
-#if GF_BITS >8
-    u_char *m = m1 ;
-#else
-    u_short *m = m1 ;
-#endif
-    fprintf(stderr,"%s\n", s);
-    for (r=0; r<rows; r++) {
-	for (c=0; c<cols; c++)
-	    fprintf(stderr,"%3d  ",m[r*cols+c]);
-	fprintf(stderr,"\n");
-    }
-    fprintf(stderr,"\n");
-    return 0;
 }
 
 /*
@@ -95,7 +77,7 @@ pr_matrix(void *m1, int rows, int cols, char *s)
  */
 
 int
-test_decode(void *code, int k, int index[], int sz, char *s)
+test_decode(fec_parms *code, int k, int index[], int sz, const char *s)
 {
     int errors;
     int reconstruct = 0 ;
@@ -129,12 +111,12 @@ test_decode(void *code, int k, int index[], int sz, char *s)
     prev_k = k ;
     prev_sz = sz ;
     if (d_original == NULL) {
-	d_original = my_malloc(k * sizeof(void *), "d_original ptr");
-	d_src = my_malloc(k * sizeof(void *), "d_src ptr");
+        d_original = (u_char**)my_malloc(k * sizeof(u_char *), "d_original ptr");
+	d_src = (u_char**)my_malloc(k * sizeof(void *), "d_src ptr");
 
 	for (i = 0 ; i < k ; i++ ) {
-	    d_original[i] = my_malloc(sz, "d_original data");
-	    d_src[i] = my_malloc(sz, "d_src data");
+           d_original[i] = (u_char*)my_malloc(sz, "d_original data");
+           d_src[i] = (u_char*)my_malloc(sz, "d_src data");
 	}
 	/*
 	 * build sample data
@@ -152,7 +134,7 @@ test_decode(void *code, int k, int index[], int sz, char *s)
 
     TICK(ticks[2]);
     for( i = 0 ; i < k ; i++ )
-	fec_encode(code, d_original, d_src[i], index[i], sz );
+       fec_encode(code, d_original, d_src[i], index[i], sz );
     TOCK(ticks[2]);
 
     TICK(ticks[1]);
@@ -209,7 +191,7 @@ int
 main(int argc, char *argv[])
 {
     char buf[256];
-    void *code ;
+    fec_parms *code ;
 
     int kk ;
     int i ;
@@ -225,7 +207,7 @@ main(int argc, char *argv[])
 #endif
     for ( kk = KK ; kk > 2 ; kk-- ) {
 	code = fec_new(kk, lim);
-	ixs = my_malloc(kk * sizeof(int), "ixs" );
+	ixs = (int*)my_malloc(kk * sizeof(int), "ixs" );
 
 	for (i=0; i<kk; i++) ixs[i] = kk - i ;
 	sprintf(buf, "kk=%d, kk - i", kk); 

@@ -1,6 +1,6 @@
 /*
  * fec.c -- forward error correction based on Vandermonde matrices
- * 980624
+ *
  * (C) 1997-98 Luigi Rizzo (luigi@iet.unipi.it)
  *
  * Portions derived from code by Phil Karn (karn@ka9q.ampr.org),
@@ -45,6 +45,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include "fecpp.h"
 
 /*
  * compatibility stuff
@@ -115,11 +117,6 @@ u_long ticks[10];	/* vars for timekeeping */
 #if (GF_BITS < 2  && GF_BITS >16)
 #error "GF_BITS must be 2 .. 16"
 #endif
-#if (GF_BITS <= 8)
-typedef unsigned char gf;
-#else
-typedef unsigned short gf;
-#endif
 
 #define	GF_SIZE ((1 << GF_BITS) - 1)	/* powers of \alpha */
 
@@ -127,7 +124,7 @@ typedef unsigned short gf;
  * Primitive polynomials - see Lin & Costello, Appendix A,
  * and  Lee & Messerschmitt, p. 453.
  */
-static char *allPp[] = {    /* GF_BITS	polynomial		*/
+static const char *allPp[] = {    /* GF_BITS	polynomial		*/
     NULL,		    /*  0	no code			*/
     NULL,		    /*  1	no code			*/
     "111",		    /*  2	1+x+x^2			*/
@@ -239,7 +236,7 @@ gf_mul(x,y)
  * one place.
  */
 static void *
-my_malloc(int sz, char *err_string)
+my_malloc(int sz, const char *err_string)
 {
     void *p = malloc( sz );
     if (p == NULL) {
@@ -260,7 +257,7 @@ generate_gf(void)
 {
     int i;
     gf mask;
-    char *Pp =  allPp[GF_BITS] ;
+    const char *Pp =  allPp[GF_BITS] ;
 
     mask = 1;	/* x ** 0 = 1 */
     gf_exp[GF_BITS] = 0; /* will be updated at the end of the 1st loop */
@@ -427,9 +424,9 @@ invert_mat(gf *src, int k)
     int irow, icol, row, col, i, ix ;
 
     int error = 1 ;
-    int *indxc = my_malloc(k*sizeof(int), "indxc");
-    int *indxr = my_malloc(k*sizeof(int), "indxr");
-    int *ipiv = my_malloc(k*sizeof(int), "ipiv");
+    int *indxc = (int*)my_malloc(k*sizeof(int), "indxc");
+    int *indxr = (int*)my_malloc(k*sizeof(int), "indxr");
+    int *ipiv = (int*)my_malloc(k*sizeof(int), "ipiv");
     gf *id_row = NEW_GF_MATRIX(1, k);
     gf *temp_row = NEW_GF_MATRIX(1, k);
 
@@ -615,7 +612,7 @@ invert_vdm(gf *src, int k)
 }
 
 static int fec_initialized = 0 ;
-static void
+void
 init_fec()
 {
     TICK(ticks[0]);
@@ -636,12 +633,6 @@ init_fec()
  */
 
 #define FEC_MAGIC	0xFECC0DEC
-
-struct fec_parms {
-    u_long magic ;
-    int k, n ;		/* parameters of the code */
-    gf *enc_matrix ;
-} ;
 
 void
 fec_free(struct fec_parms *p)
@@ -675,7 +666,7 @@ fec_new(int k, int n)
 		k, n, GF_SIZE );
 	return NULL ;
     }
-    retval = my_malloc(sizeof(struct fec_parms), "new_code");
+    retval = (fec_parms*)my_malloc(sizeof(struct fec_parms), "new_code");
     retval->k = k ;
     retval->n = n ;
     retval->enc_matrix = NEW_GF_MATRIX(n, k);
@@ -847,10 +838,10 @@ fec_decode(struct fec_parms *code, gf *pkt[], int index[], int sz)
     /*
      * do the actual decoding
      */
-    new_pkt = my_malloc (k * sizeof (gf * ), "new pkt pointers" );
+    new_pkt = (gf**)my_malloc (k * sizeof (gf * ), "new pkt pointers" );
     for (row = 0 ; row < k ; row++ ) {
 	if (index[row] >= k) {
-	    new_pkt[row] = my_malloc (sz * sizeof (gf), "new pkt buffer" );
+        new_pkt[row] = (gf*)my_malloc (sz * sizeof (gf), "new pkt buffer" );
 	    bzero(new_pkt[row], sz * sizeof(gf) ) ;
 	    for (col = 0 ; col < k ; col++ )
 		addmul(new_pkt[row], pkt[col], m_dec[row*k + col], sz) ;
