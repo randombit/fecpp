@@ -15,26 +15,13 @@
 #
 
 CC=gcc
-# COPT= -O9 -funroll-loops -DGF_BITS=8
-COPT= -O1 -DGF_BITS=8
-CFLAGS=$(COPT) -Wall # -DTEST
-SRCS= fec.c Makefile test.c fec.s.980621e \
-	fec.S.980624a \
-	fec.S16.980624a
-DOCS= README fec.3
-ALLSRCS= $(SRCS) $(DOCS) fec.h
+CFLAGS=-O2 -DGF_BITS=8 -Wall -Wextra
 
 fec: fec.o test.o
 	$(CC) $(CFLAGS) -o fec fec.o test.o
 
-fec.o: fec.h fec.S
-	$(CC) $(CFLAGS) -c -o fec.o fec.S
-
-fec.S: fec.c Makefile
-	$(CC) $(CFLAGS) -S -o fec.S fec.c
+%.o: %.c fec.h
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	- rm *.core *.o fec.s fec
-
-tgz: $(ALLSRCS)
-	tar cvzf vdm`date +%y%m%d`.tgz $(ALLSRCS)
+	rm -f *.o fec
