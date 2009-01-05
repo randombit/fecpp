@@ -611,7 +611,7 @@ init_fec()
 void
 fec_free(struct fec_parms *p)
 {
-    if (p==NULL
+    if (p==NULL ||
         p->magic != ( ( (FEC_MAGIC ^ p->k) ^ p->n))) {
 	fprintf(stderr, "bad parameters to fec_free\n");
 	return ;
