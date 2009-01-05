@@ -222,7 +222,7 @@ if (0) {
 	test_decode(code, kk, ixs, SZ, "0 = 1 (error expected)");
 	}
 
-if (1)
+if (0)
 	for (i= lim-1 ; i >= kk ; i--) {
 	    int j ;
 	    for (j=0; j<KK; j++) ixs[j] = kk - j ;
