@@ -91,9 +91,9 @@ test_decode(fec_parms *code, int k, int index[], int sz, const char *s)
 		sz);
 	return 1 ;
     }
-    if (k < 1 || k > GF_SIZE + 1) {
+    if (k < 1 || k > 255 + 1) {
 	fprintf(stderr, "test_decode: k %d invalid, must be 1..%d\n",
-		k, GF_SIZE + 1 );
+		k, 255 + 1 );
 	return 2 ;
     }
     if (prev_k != k || prev_sz != sz) {
@@ -123,7 +123,7 @@ test_decode(fec_parms *code, int k, int index[], int sz, const char *s)
 	 */
 	for (i = 0 ; i < k ; i++ ) {
 	    for (item=0; item < sz; item++)
-		d_original[i][item] = ((item ^ i) + 3) & GF_SIZE;
+		d_original[i][item] = ((item ^ i) + 3) & 255;
 	}
     }
 
@@ -169,7 +169,7 @@ test_gf()
     /*
      * test gf tables. Sufficiently tested...
      */
-    for (i=0; i<= GF_SIZE; i++) {
+    for (i=0; i<= 255; i++) {
         if (gf_exp[gf_log[i]] != i)
 	    fprintf(stderr, "bad exp/log i %d log %d exp(log) %d\n",
 		i, gf_log[i], gf_exp[gf_log[i]]);
@@ -198,7 +198,7 @@ main(int argc, char *argv[])
 
     int *ixs ;
 
-    int lim = GF_SIZE + 1 ;
+    int lim = 255 + 1 ;
 
     if (lim > 1024) lim = 1024 ;
 
