@@ -74,7 +74,7 @@ init_mul_table()
 #else
 // for larger values of GF_BITS
 static inline byte
-gf_mul(x,y)
+gf_mul(byte x, byte y)
 {
     if ( (x) == 0 || (y)==0 ) return 0;
      
@@ -112,9 +112,6 @@ my_malloc(int sz, const char *err_string)
     }
     return p ;
 }
-
-#define NEW_GF_MATRIX(rows, cols) \
-    (byte *)my_malloc(rows * cols * sizeof(byte), " ## __LINE__ ## " )
 
 /*
  * initialize the data structures used for computations in GF.
@@ -298,8 +295,8 @@ invert_mat(byte *src, int k)
     int *indxc = (int*)my_malloc(k*sizeof(int), "indxc");
     int *indxr = (int*)my_malloc(k*sizeof(int), "indxr");
     int *ipiv = (int*)my_malloc(k*sizeof(int), "ipiv");
-    byte *id_row = NEW_GF_MATRIX(1, k);
-    byte *temp_row = NEW_GF_MATRIX(1, k);
+    byte *id_row = (byte*)my_malloc(1 * k, "gf");
+    byte *temp_row = (byte*)my_malloc(1 * k, "gf");
 
     memset(id_row, 0, k*sizeof(byte));
 
@@ -437,10 +434,10 @@ invert_vdm(byte *src, int k)
      * c holds the coefficient of P(x) = Prod (x - p_i), i=0..k-1
      * b holds the coefficient for the matrix inversion
      */
-    c = NEW_GF_MATRIX(1, k);
-    b = NEW_GF_MATRIX(1, k);
+    c = (byte*)my_malloc(1 * k, "gf");
+    b = (byte*)my_malloc(1 * k, "gf");
 
-    p = NEW_GF_MATRIX(1, k);
+    p = (byte*)my_malloc(1 * k, "gf");
    
     for ( j=1, i = 0 ; i < k ; i++, j+=k ) {
 	c[i] = 0 ;
@@ -532,9 +529,9 @@ fec_new(int k, int n)
     retval = (fec_parms*)my_malloc(sizeof(struct fec_parms), "new_code");
     retval->k = k ;
     retval->n = n ;
-    retval->enc_matrix = NEW_GF_MATRIX(n, k);
+    retval->enc_matrix = (byte*)my_malloc(n * k, "gf");
     retval->magic = ( ( FEC_MAGIC ^ k) ^ n);
-    tmp_m = NEW_GF_MATRIX(n, k);
+    tmp_m = (byte*)my_malloc(n * k, "gf");
     /*
      * fill the matrix with powers of field elements, starting from 0.
      * The first row is special, cannot be computed with exp. table.
@@ -624,7 +621,8 @@ static byte *
 build_decode_matrix(struct fec_parms *code, byte *pkt[], int index[])
 {
     int i , k = code->k ;
-    byte *p, *matrix = NEW_GF_MATRIX(k, k);
+    byte *p;
+    byte* matrix = (byte*)my_malloc(k * k, "gf");
 
     for (i = 0, p = matrix ; i < k ; i++, p += k ) {
 #if 1 /* this is simply an optimization, not very useful indeed */
