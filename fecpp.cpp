@@ -10,6 +10,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdexcept>
 
 /*
  * To speed up computations, we have tables for logarithm, exponent
@@ -106,11 +107,9 @@ static void *
 my_malloc(int sz, const char *err_string)
 {
     void *p = malloc( sz );
-    if (p == NULL) {
-        fprintf(stderr, "-- malloc failure allocating %s\n", err_string);
-        exit(1) ;
-    }
-    return p ;
+    if(!p)
+       throw std::bad_alloc();
+    return p;
 }
 
 /*
