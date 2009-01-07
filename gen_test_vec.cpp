@@ -56,14 +56,21 @@ int main()
    {
    srand(0);
 
-   for(int n = 1; n != 10; ++n)
+   const int Ms[] = {1, 2, 3, 5, 7, 9, 11, 17, 19, 33, 35, 65, 66, 67,
+                     128, 129, 130, 131, 254, 255, 0 };
+   const int Ks[] = {1,2,3,4,5,6,7,8,9,17,31,32,33,63,64,65,128,129,255 ,0};
+
+   for(int i = 0; Ms[i]; ++i)
       {
-      for(int k = 1; k != 10; ++k)
+      for(int j = 0; Ks[j]; ++j)
          {
-         if(k >= n)
+         int k = Ks[j];
+         int m = Ms[i];
+
+         if(k >= m)
             continue;
 
-         gen_test_vector(k, n);
+         gen_test_vector(k, m);
          }
       }
 

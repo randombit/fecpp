@@ -58,7 +58,7 @@ std::string decode_hex(const std::string& in)
    return out;
    }
 
-bool check_recovery(int k, int n, const std::string& hex_input,
+bool check_recovery(byte k, byte n, const std::string& hex_input,
                     const std::vector<std::string>& hex_packets)
    {
    std::string input = decode_hex(hex_input);
@@ -75,23 +75,34 @@ bool check_recovery(int k, int n, const std::string& hex_input,
    for(int i = 0; i != k; ++i)
       {
       pkts[i] = new byte[input.length() / k];
-      indexes[i] = i + (n - k);
 
-      const void* src_packet = packets[i+1].c_str();
-      int src_len = packets[i+1].length();
+      int ind = i + (n - k);
+
+      indexes[i] = ind;
+
+      const void* src_packet = packets[ind].c_str();
+      int src_len = packets[ind].length();
 
       memcpy(pkts[i], src_packet, src_len);
       }
 
    fec_decode(code, pkts, indexes, input.length() / k);
 
-   printf("%s\n", hex_input.c_str());
+   //printf("%s\n", hex_input.c_str());
    for(int i = 0; i != k; ++i)
       {
-      for(int j = 0; j != input.length() / k; ++j)
-         printf("%02X", pkts[i][j]);
+      int stride = input.length() / k;
+
+      for(size_t j = 0; j != input.length() / k; ++j)
+         {
+         //printf("%02X", pkts[i][j]);
+
+         if(pkts[i][j] != input[stride*i+j])
+            printf("Bad: pkts[%d][%d] = %02X != input[%d*%d+%d] = %02X\n",
+                   i, j, pkts[i][j], stride, i, j, (byte)input[stride*i+j]);
+         }
       }
-   printf("\n");
+   //printf("\n");
 
    delete[] pkts;
    delete[] indexes;
@@ -146,7 +157,7 @@ int main()
             blocks.push_back(val);
          }
 
-      if(blocks.size() != n)
+      if((int)blocks.size() != n)
          throw std::logic_error("Bad block count");
 
       check_recovery(k, n, input, blocks);
