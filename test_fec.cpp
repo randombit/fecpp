@@ -54,7 +54,7 @@ typedef unsigned short u_short ;
 	  if (t1 < t) t = 256000000 + t1 - t ; \
 	  else t = t1 - t ; \
 	  if (t == 0) t = 1 ;}
-	
+
 u_long ticks[10];	/* vars for timekeeping */
 
 void *
@@ -153,11 +153,13 @@ test_decode(fec_parms *code, int k, int index[], int sz, const char *s)
 	fprintf(stderr, "Errors reconstructing %d blocks out of %d\n",
 	    errors, k);
 
+    /*
     fprintf(stderr,
 	"  k %3d, l %3d  c_enc %10.6f MB/s c_dec %10.6f MB/s     \r",
 	k, reconstruct,
 	(double)(k * sz * reconstruct)/(double)ticks[2],
 	(double)(k * sz * reconstruct)/(double)ticks[1]);
+    */
     return errors ;
 }
 
@@ -205,51 +207,60 @@ main(int argc, char *argv[])
 #if 0
     test_gf();
 #endif
-    for ( kk = KK ; kk > 2 ; kk-- ) {
-	code = fec_new(kk, lim);
-	ixs = (int*)my_malloc(kk * sizeof(int), "ixs" );
 
-	for (i=0; i<kk; i++) ixs[i] = kk - i ;
-	sprintf(buf, "kk=%d, kk - i", kk); 
-	test_decode(code, kk, ixs, SZ, buf);
+    for ( kk = KK ; kk > 2 ; kk-- )
+       {
+       code = fec_new(kk, lim);
+       ixs = (int*)my_malloc(kk * sizeof(int), "ixs" );
 
-	for (i=0; i<kk; i++) ixs[i] = i ;
-	test_decode(code, kk, ixs, SZ, "i");
+       for (i=0; i<kk; i++) ixs[i] = kk - i ;
+       sprintf(buf, "kk=%d, kk - i", kk);
+       test_decode(code, kk, ixs, SZ, buf);
 
-if (0) {
-	for (i=0; i<kk; i++) ixs[i] = i ;
-	ixs[0] = ixs[kk/2] ;
-	test_decode(code, kk, ixs, SZ, "0 = 1 (error expected)");
-	}
+       for (i=0; i<kk; i++) ixs[i] = i ;
+       test_decode(code, kk, ixs, SZ, "i");
 
-if (0)
-	for (i= lim-1 ; i >= kk ; i--) {
-	    int j ;
-	    for (j=0; j<KK; j++) ixs[j] = kk - j ;
-	    ixs[0] = i ;
-	    test_decode(code, kk, ixs, SZ, "0 = big");
-	}
+       if (0)
+          {
+          for (i=0; i<kk; i++) ixs[i] = i ;
+          ixs[0] = ixs[kk/2] ;
+          test_decode(code, kk, ixs, SZ, "0 = 1 (error expected)");
+          }
 
-if (1)
-	for (i= lim - kk ; i >= 0 && i>= lim - kk - 4 ; i--) {
-	    int j ;
-	    for (j=0; j<kk; j++)
-		ixs[j] = kk -1 - j + i ;
-	    test_decode(code, kk, ixs, SZ, "shifted j");
-	}
-if (1)  {
-	int j, max_i0 = KK/2 ;
-	if (max_i0 + KK > lim)
-	    max_i0 = lim - KK ;
-	for (i= 0 ; i <= max_i0 ; i++) {
-	    for (j=0; j<kk; j++)
-		ixs[j] = j + i ;
-	    test_decode(code, kk, ixs, SZ, "shifted j");
-	}
-	}
-	fprintf(stderr, "\n");
-	free(ixs);
-	fec_free(code);
-    }
+       if (0)
+          for (i= lim-1 ; i >= kk ; i--)
+             {
+             int j ;
+             for (j=0; j<KK; j++) ixs[j] = kk - j ;
+             ixs[0] = i ;
+             test_decode(code, kk, ixs, SZ, "0 = big");
+             }
+
+       if (1)
+          for (i= lim - kk ; i >= 0 && i>= lim - kk - 4 ; i--)
+             {
+             int j ;
+             for (j=0; j<kk; j++)
+                ixs[j] = kk -1 - j + i ;
+             test_decode(code, kk, ixs, SZ, "shifted j");
+             }
+
+       if (1)
+          {
+          int j, max_i0 = KK/2 ;
+          if (max_i0 + KK > lim)
+             max_i0 = lim - KK ;
+          for (i= 0 ; i <= max_i0 ; i++)
+             {
+             for (j=0; j<kk; j++)
+                ixs[j] = j + i ;
+             test_decode(code, kk, ixs, SZ, "shifted j");
+             }
+          }
+
+       fprintf(stderr, "\n");
+       free(ixs);
+       fec_free(code);
+       }
     return 0;
 }
