@@ -153,13 +153,12 @@ test_decode(fec_parms *code, int k, int index[], int sz, const char *s)
 	fprintf(stderr, "Errors reconstructing %d blocks out of %d\n",
 	    errors, k);
 
-    /*
     fprintf(stderr,
 	"  k %3d, l %3d  c_enc %10.6f MB/s c_dec %10.6f MB/s     \r",
 	k, reconstruct,
 	(double)(k * sz * reconstruct)/(double)ticks[2],
 	(double)(k * sz * reconstruct)/(double)ticks[1]);
-    */
+
     return errors ;
 }
 
