@@ -2,17 +2,19 @@
 CC=g++
 CFLAGS=-O0 -g -DGF_BITS=8 -Wall -Wextra
 
-test_fec: test_fec.o libfecpp.a
-	$(CC) $(CFLAGS) test_fec.o -L. -lfecpp -o test_fec
+all: test_fec test_recovery
 
-test_fec.o: test_fec.cpp fecpp.h
-	$(CC) $(CFLAGS) -c $< -o $@
+test_fec: test_fec.o libfecpp.a
+	$(CC) $(CFLAGS) $< -L. -lfecpp -o $@
+
+test_recovery: test_recovery.o fecpp.h
+	$(CC) $(CFLAGS) $< -L. -lfecpp -o $@
 
 libfecpp.a: fecpp.o
 	ar crs libfecpp.a fecpp.o
 
-fecpp.o: fecpp.cpp fecpp.h
+%.o: %.cpp fecpp.h
 	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f *.a *.o test_fec
+	rm -f *.a *.o test_fec test_recovery
