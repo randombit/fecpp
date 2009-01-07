@@ -40,8 +40,6 @@ modnn(int x)
     return x;
 }
 
-#define SWAP(a,b,t) {t tmp; tmp=a; a=b; b=tmp;}
-
 /*
  * gf_mul(x,y) multiplies two numbers. If GF_BITS<=8, it is much
  * faster to use a multiplication table.
@@ -346,7 +344,7 @@ found_piv:
          */
         if (irow != icol) {
             for (ix = 0 ; ix < k ; ix++ ) {
-                SWAP( src[irow*k + ix], src[icol*k + ix], byte) ;
+            std::swap( src[irow*k + ix], src[icol*k + ix]);
             }
         }
         indxr[col] = irow ;
@@ -394,7 +392,7 @@ found_piv:
 	else
 	if (indxr[col] != indxc[col] ) {
 	    for (row = 0 ; row < k ; row++ ) {
-		SWAP( src[row*k + indxr[col]], src[row*k + indxc[col]], byte) ;
+            std::swap( src[row*k + indxr[col]], src[row*k + indxc[col]]);
 	    }
 	}
     }
@@ -604,8 +602,8 @@ shuffle(byte *pkt[], int index[], int k)
 	    if (index[c] == c) {
 		return 1 ;
 	    }
-	    SWAP(index[i], index[c], int) ;
-	    SWAP(pkt[i], pkt[c], byte *) ;
+            std::swap(index[i], index[c]);
+            std::swap(pkt[i], pkt[c]);
 	}
     }
     return 0 ;
