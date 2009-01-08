@@ -84,7 +84,7 @@ test_decode(fec_parms *code, int k, int index[], int sz, const char *s)
     int item, i ;
 
     static int prev_k = 0, prev_sz = 0;
-    static u_char **d_original = NULL, **d_src = NULL ;
+    static byte **d_original = NULL, **d_src = NULL ;
 
     if (sz < 1 || sz > 8192) {
 	fprintf(stderr, "test_decode: size %d invalid, must be 1..8K\n",
@@ -111,12 +111,12 @@ test_decode(fec_parms *code, int k, int index[], int sz, const char *s)
     prev_k = k ;
     prev_sz = sz ;
     if (d_original == NULL) {
-        d_original = (u_char**)my_malloc(k * sizeof(u_char *), "d_original ptr");
-	d_src = (u_char**)my_malloc(k * sizeof(void *), "d_src ptr");
+        d_original = (byte**)my_malloc(k * sizeof(byte *), "d_original ptr");
+	d_src = (byte**)my_malloc(k * sizeof(void *), "d_src ptr");
 
 	for (i = 0 ; i < k ; i++ ) {
-           d_original[i] = (u_char*)my_malloc(sz, "d_original data");
-           d_src[i] = (u_char*)my_malloc(sz, "d_src data");
+           d_original[i] = (byte*)my_malloc(sz, "d_original data");
+           d_src[i] = (byte*)my_malloc(sz, "d_src data");
 	}
 	/*
 	 * build sample data
