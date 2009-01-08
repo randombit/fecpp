@@ -434,7 +434,6 @@ int
 invert_vdm(byte *src, int k)
    {
    int i, j, row, col;
-   byte *b, *c, *p;
    byte t, xx;
 
    if(k == 1) 	/* degenerate case, matrix must be p^0 = 1 */
@@ -443,10 +442,7 @@ invert_vdm(byte *src, int k)
    * c holds the coefficient of P(x) = Prod (x - p_i), i=0..k-1
    * b holds the coefficient for the matrix inversion
    */
-   c = (byte*)my_malloc(1 * k, "gf");
-   b = (byte*)my_malloc(1 * k, "gf");
-
-   p = (byte*)my_malloc(1 * k, "gf");
+   std::vector<byte> c(k), b(k), p(k);
 
    for(j=1, i = 0; i < k; i++, j+=k)
       {
@@ -484,9 +480,7 @@ invert_vdm(byte *src, int k)
       for(col = 0; col < k; col++)
          src[col*k + row] = gf_mul(GF_INVERSE[t], b[col]);
       }
-   free(c);
-   free(b);
-   free(p);
+
    return 0;
    }
 
@@ -500,7 +494,6 @@ void init_fec()
       fec_initialized = 1;
       }
    }
-
 
 /*
 * shuffle move src packets in their position
@@ -561,17 +554,19 @@ build_decode_matrix(struct fec_parms *code, byte *pkt[], int index[])
 	    return NULL;
             }
       }
+
    try
       {
       invert_mat(matrix, k);
+      return matrix;
       }
    catch(std::exception& e)
       {
       fprintf(stderr, "%s", e.what());
       free(matrix);
-      matrix = NULL;
+      return NULL;
       }
-   return matrix;
+
    }
 
 }
@@ -605,7 +600,6 @@ struct fec_parms *
 fec_new(int k, int n)
    {
    int row, col;
-   byte *p, *tmp_m;
 
    struct fec_parms *retval;
 
@@ -622,7 +616,8 @@ fec_new(int k, int n)
    retval->n = n;
    retval->enc_matrix = (byte*)my_malloc(n * k, "gf");
    retval->magic = ((FEC_MAGIC ^ k) ^ n);
-   tmp_m = (byte*)my_malloc(n * k, "gf");
+
+   std::vector<byte> tmp_m(n * k);
    /*
    * fill the matrix with powers of field elements, starting from 0.
    * The first row is special, cannot be computed with exp. table.
@@ -630,7 +625,7 @@ fec_new(int k, int n)
    tmp_m[0] = 1;
    for(col = 1; col < k; col++)
       tmp_m[col] = 0;
-   for(p = tmp_m + k, row = 0; row < n-1; row++, p += k)
+   for(byte* p = &tmp_m[k], row = 0; row < n-1; row++, p += k)
       {
       for(col = 0; col < k; col ++)
          p[col] = GF_EXP[modnn(row*col)];
@@ -641,15 +636,14 @@ fec_new(int k, int n)
    * k*k vandermonde matrix, multiply right the bottom n-k rows
    * by the inverse, and construct the identity matrix at the top.
    */
-   invert_vdm(tmp_m, k); /* much faster than invert_mat */
-   matmul(tmp_m + k*k, tmp_m, retval->enc_matrix + k*k, n - k, k, k);
+   invert_vdm(&tmp_m[0], k); /* much faster than invert_mat */
+   matmul(&tmp_m[k*k], &tmp_m[0], retval->enc_matrix + k*k, n - k, k, k);
    /*
    * the upper matrix is I so do not bother with a slow multiply
    */
    memset(retval->enc_matrix, 0, k*k*sizeof(byte));
-   for(p = retval->enc_matrix, col = 0; col < k; col++, p += k+1)
+   for(byte* p = retval->enc_matrix, col = 0; col < k; col++, p += k+1)
       *p = 1;
-   free(tmp_m);
 
    return retval;
    }
