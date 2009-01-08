@@ -187,7 +187,7 @@ gf_mul(byte x, byte y)
    }
 #define init_mul_table()
 
-#define USE_GF_MULC register byte * __gf_mulc_
+#define USE_GF_MULC register const byte * __gf_mulc_
 #define GF_MULC0(c) __gf_mulc_ = &GF_EXP[ GF_LOG[c] ]
 #define GF_ADDMULC(dst, x) { if(x) dst ^= __gf_mulc_[ GF_LOG[x] ] ; }
 #endif
