@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdexcept>
+#include <vector>
 
 namespace {
 
@@ -288,20 +289,16 @@ my_malloc(int sz, const char *err_string)
 * (Gauss-Jordan, adapted from Numerical Recipes in C)
 * Return non-zero if singular.
 */
-int
-invert_mat(byte *src, int k)
+void invert_mat(byte *src, int k)
    {
    byte c, *p;
    int irow, icol, row, col, i, ix;
 
-   int error = 1;
-   int *indxc = (int*)my_malloc(k*sizeof(int), "indxc");
-   int *indxr = (int*)my_malloc(k*sizeof(int), "indxr");
-   int *ipiv = (int*)my_malloc(k*sizeof(int), "ipiv");
-   byte *id_row = (byte*)my_malloc(1 * k, "gf");
-   byte *temp_row = (byte*)my_malloc(1 * k, "gf");
-
-   memset(id_row, 0, k*sizeof(byte));
+   std::vector<int> indxc(k);
+   std::vector<int> indxr(k);
+   std::vector<int> ipiv(k);
+   std::vector<byte> id_row(k);
+   std::vector<byte> temp_row(k);
 
    /*
    * ipiv marks elements already used as pivots.
@@ -317,12 +314,14 @@ invert_mat(byte *src, int k)
       * First try on the diagonal, if it fails, look elsewhere.
       */
       irow = icol = -1;
+
       if(ipiv[col] != 1 && src[col*k + col] != 0)
          {
          irow = col;
          icol = col;
          goto found_piv;
          }
+
       for(row = 0; row < k; row++)
          {
          if(ipiv[row] != 1)
@@ -337,19 +336,16 @@ invert_mat(byte *src, int k)
                      icol = ix;
                      goto found_piv;
                      }
-                  } else if(ipiv[ix] > 1)
-                  {
-                  fprintf(stderr, "singular matrix\n");
-                  goto fail;
                   }
+               else if(ipiv[ix] > 1)
+                  throw std::invalid_argument("singlar matrix");
                }
             }
          }
+
       if(icol == -1)
-         {
-         fprintf(stderr, "XXX pivot not found!\n");
-         goto fail;
-         }
+         throw std::invalid_argument("pivot not found in invert_mat");
+
       found_piv:
       ++(ipiv[icol]);
       /*
@@ -370,10 +366,7 @@ invert_mat(byte *src, int k)
       c = pivot_row[icol];
 
       if(c == 0)
-         {
-         fprintf(stderr, "singular matrix 2\n");
-         goto fail;
-         }
+         throw std::invalid_argument("singlar matrix");
 
       if(c != 1)
          { /* otherwhise this is a NOP */
@@ -394,7 +387,7 @@ invert_mat(byte *src, int k)
       * we can optimize the addmul).
       */
       id_row[icol] = 1;
-      if(memcmp(pivot_row, id_row, k*sizeof(byte)) != 0)
+      if(memcmp(pivot_row, &id_row[0], k*sizeof(byte)) != 0)
          {
          for(p = src, ix = 0; ix < k; ix++, p += k)
             {
@@ -423,14 +416,6 @@ invert_mat(byte *src, int k)
                }
             }
       }
-   error = 0;
-   fail:
-   free(indxc);
-   free(indxr);
-   free(ipiv);
-   free(id_row);
-   free(temp_row);
-   return error;
    }
 
 /*
@@ -576,8 +561,13 @@ build_decode_matrix(struct fec_parms *code, byte *pkt[], int index[])
 	    return NULL;
             }
       }
-   if(invert_mat(matrix, k))
+   try
       {
+      invert_mat(matrix, k);
+      }
+   catch(std::exception& e)
+      {
+      fprintf(stderr, "%s", e.what());
       free(matrix);
       matrix = NULL;
       }
