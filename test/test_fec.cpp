@@ -77,7 +77,7 @@ my_malloc(int sz, const char *s)
  */
 
 int
-test_decode(fec_parms *code, int k, int index[], int sz, const char *s)
+test_decode(fec_code& code, int k, int index[], int sz, const char *s)
 {
     int errors;
     int reconstruct = 0 ;
@@ -134,14 +134,11 @@ test_decode(fec_parms *code, int k, int index[], int sz, const char *s)
 
     TICK(ticks[2]);
     for( i = 0 ; i < k ; i++ )
-       fec_encode(code, d_original, d_src[i], index[i], sz );
+       code.encode(d_original, d_src[i], index[i], sz );
     TOCK(ticks[2]);
 
     TICK(ticks[1]);
-    if (fec_decode(code, d_src, index, sz)) {
-	fprintf(stderr, "detected singular matrix for %s  \n", s);
-	return 1 ;
-    }
+    code.decode(d_src, index, sz);
     TOCK(ticks[1]);
 
     for (i=0; i<k; i++)
@@ -192,7 +189,6 @@ int
 main(int argc, char *argv[])
 {
     char buf[256];
-    fec_parms *code ;
 
     int kk ;
     int i ;
@@ -209,7 +205,7 @@ main(int argc, char *argv[])
 
     for ( kk = KK ; kk > 2 ; kk-- )
        {
-       code = fec_new(kk, lim);
+       fec_code code(kk, lim);
        ixs = (int*)my_malloc(kk * sizeof(int), "ixs" );
 
        for (i=0; i<kk; i++) ixs[i] = kk - i ;
@@ -259,7 +255,6 @@ main(int argc, char *argv[])
 
        fprintf(stderr, "\n");
        free(ixs);
-       fec_free(code);
        }
     return 0;
 }

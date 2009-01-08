@@ -58,6 +58,36 @@ std::string decode_hex(const std::string& in)
    return out;
    }
 
+// this is really, stupendouly dumb, but it works for current purposes
+class chooser_of_k_of_n
+   {
+   public:
+      int choose();
+
+      chooser_of_k_of_n(int k_arg, int n_arg) :
+         k(k_arg), n(n_arg), chosen(n) {}
+
+   private:
+      int k, n;
+      std::vector<bool> chosen;
+   };
+
+int chooser_of_k_of_n::choose()
+   {
+   while(true)
+      {
+      for(size_t i = 0; i != chosen.size(); ++i)
+         {
+         if(std::rand() % 16 == 0)
+            if(chosen[i] == false)
+               {
+               chosen[i] = true;
+               return i;
+               }
+         }
+      }
+   }
+
 bool check_recovery(byte k, byte n, const std::string& hex_input,
                     const std::vector<std::string>& hex_packets)
    {
@@ -67,16 +97,18 @@ bool check_recovery(byte k, byte n, const std::string& hex_input,
    for(size_t i = 0; i != hex_packets.size(); ++i)
       packets.push_back(decode_hex(hex_packets[i]));
 
-   fec_parms* code = fec_new(k, n);
+   fec_code code(k, n);
 
    byte** pkts = new byte*[k];
    int* indexes = new int[k];
+
+   chooser_of_k_of_n chooser(k,n);
 
    for(int i = 0; i != k; ++i)
       {
       pkts[i] = new byte[input.length() / k];
 
-      int ind = i + (n - k);
+      int ind = chooser.choose();
 
       indexes[i] = ind;
 
@@ -86,7 +118,7 @@ bool check_recovery(byte k, byte n, const std::string& hex_input,
       memcpy(pkts[i], src_packet, src_len);
       }
 
-   fec_decode(code, pkts, indexes, input.length() / k);
+   code.decode(pkts, indexes, input.length() / k);
 
    //printf("%s\n", hex_input.c_str());
    for(int i = 0; i != k; ++i)
@@ -110,14 +142,14 @@ bool check_recovery(byte k, byte n, const std::string& hex_input,
    delete[] pkts;
    delete[] indexes;
 
-   fec_free(code);
-
    return false;
    }
 
 int main()
    {
    std::ifstream testfile("tests.txt");
+
+   std::srand(0);
 
    while(testfile.good())
       {

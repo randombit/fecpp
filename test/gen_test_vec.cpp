@@ -5,7 +5,7 @@
 
 void gen_test_vector(int k, int n)
    {
-   fec_parms* code = fec_new(k, n);
+   fec_code code(k, n);
 
    unsigned int buf_size = k * (3 + rand() % 32);
    unsigned char* buf = new byte[buf_size];
@@ -35,7 +35,7 @@ void gen_test_vector(int k, int n)
 
    for(int i = 0; i != n; ++i)
       {
-      fec_encode(code, buf_ptrs, fec, i, buf_size / k);
+      code.encode(buf_ptrs, fec, i, buf_size / k);
 
       printf("block_%d=", i);
       for(int j = 0; j != buf_size / k; ++j)
@@ -48,9 +48,6 @@ void gen_test_vector(int k, int n)
 
    delete[] fec;
    delete[] buf;
-
-   fec_free(code);
-
    }
 
 int main()

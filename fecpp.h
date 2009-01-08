@@ -10,20 +10,35 @@
 #ifndef FECPP_H__
 #define FECPP_H__
 
+#include <cstddef>
+
 typedef unsigned char byte;
 
-struct fec_parms
+class fec_code
    {
-   int k, n;  /* parameters of the code */
-   byte* enc_matrix;
+   public:
+      /**
+      * fec_code constructor
+      * @param k the number of shares needed for recovery
+      * @param n the number of shares generated
+      */
+      fec_code(size_t k, size_t n);
+
+      ~fec_code();
+
+      size_t get_k() const { return k; }
+      size_t get_n() const { return n; }
+
+      /**
+      * @param src The list of src packets, each size k
+      * @param fec The output buffer
+      */
+      void encode(byte* src[], byte* fec, int index, int sz) const;
+
+      void decode(byte* pkt[], int index[], int sz) const;
+   private:
+      size_t k, n;
+      byte* enc_matrix;
    };
-
-fec_parms* fec_new(int k, int n);
-void fec_free(fec_parms *p);
-
-void fec_encode(const fec_parms* code,
-                byte* src[], byte* fec, int index, int sz);
-
-int fec_decode(const fec_parms* code, byte* pkt[], int index[], int sz);
 
 #endif

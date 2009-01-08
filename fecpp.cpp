@@ -26,7 +26,7 @@ namespace {
  * \alpha=x is the primitive element of GF(2^m)
  *
  * For efficiency, gf_exp[] has size 2*GF_SIZE, so that a simple
- * multiplication of two numbers can be resolved without calling modnn
+ * multiplication of two numbers can be resolved without calling mod
  */
 const byte GF_EXP[510] = {
 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1D, 0x3A, 0x74,
@@ -169,7 +169,7 @@ init_mul_table()
    {
    for(int i = 0; i < 256; ++i)
       for(int j = 0; j < 256; ++j)
-         gf_mul_table[i][j] = GF_EXP[modnn(GF_LOG[i] + GF_LOG[j])];
+         gf_mul_table[i][j] = GF_EXP[(GF_LOG[i] + GF_LOG[j]) % 255];
 
    for(int i = 0; i < 256; ++i)
       gf_mul_table[0][i] = gf_mul_table[i][0] = 0;
@@ -508,10 +508,8 @@ shuffle(byte *pkt[], int index[], int k)
 * a vector of k*k elements, in row-major order
 */
 std::vector<byte>
-build_decode_matrix(const fec_parms* code, int index[])
+build_decode_matrix(int k, int n, const byte* enc_matrix, int index[])
    {
-   const int k = code->k;
-
    std::vector<byte> matrix(k * k);
 
    int i;
@@ -524,8 +522,8 @@ build_decode_matrix(const fec_parms* code, int index[])
          std::memset(p, 0, k*sizeof(byte));
          p[i] = 1;
          }
-      else if(index[i] < code->n)
-         std::memcpy(p, &(code->enc_matrix[index[i]*k]), k*sizeof(byte));
+      else if(index[i] < n)
+         std::memcpy(p, &(enc_matrix[index[i]*k]), k*sizeof(byte));
       else
          throw std::logic_error("bad index in build_decode_matrix");
       }
@@ -546,22 +544,17 @@ build_decode_matrix(const fec_parms* code, int index[])
 * create a new encoder, returning a descriptor. This contains k,n and
 * the encoding matrix.
 */
-fec_parms *
-fec_new(int k, int n)
+fec_code::fec_code(size_t k_arg, size_t n_arg) : k(k_arg), n(n_arg)
    {
    init_fec();
 
-   if(k > 256 || n > 256 || k > n)
+   if(k > n)
       {
-      fprintf(stderr, "Invalid parameters k %d n %d GF_SIZE %d\n",
-              k, n, 0xFF);
-      return NULL;
+      printf("%d > %d\n", k, n);
+      throw std::invalid_argument("fec_code: k must be <= n");
       }
 
-   fec_parms *retval = new fec_parms;
-   retval->k = k;
-   retval->n = n;
-   retval->enc_matrix = new byte[n*k];
+   this->enc_matrix = new byte[n*k];
 
    std::vector<byte> tmp_m(n * k);
 
@@ -575,7 +568,7 @@ fec_new(int k, int n)
    for(byte* p = &tmp_m[k], row = 0; row < n-1; row++, p += k)
       {
       for(int col = 0; col < k; col ++)
-         p[col] = GF_EXP[modnn(row*col)];
+         p[col] = GF_EXP[(row*col) % 255];
       }
 
    /*
@@ -584,26 +577,19 @@ fec_new(int k, int n)
    * by the inverse, and construct the identity matrix at the top.
    */
    invert_vdm(&tmp_m[0], k); /* much faster than invert_mat */
-   matmul(&tmp_m[k*k], &tmp_m[0], retval->enc_matrix + k*k, n - k, k, k);
+   matmul(&tmp_m[k*k], &tmp_m[0], this->enc_matrix + k*k, n - k, k, k);
 
    /*
    * the upper matrix is I so do not bother with a slow multiply
    */
-   std::memset(retval->enc_matrix, 0, k*k*sizeof(byte));
-   for(byte* p = retval->enc_matrix, col = 0; col < k; col++, p += k+1)
+   std::memset(this->enc_matrix, 0, k*k*sizeof(byte));
+   for(byte* p = this->enc_matrix, col = 0; col < k; col++, p += k+1)
       *p = 1;
-
-   return retval;
    }
 
-void
-fec_free(fec_parms *p)
+fec_code::~fec_code()
    {
-   if(p == 0)
-      return;
-
-   delete[] p->enc_matrix;
-   delete p;
+   delete[] this->enc_matrix;
    }
 
 /*
@@ -611,23 +597,20 @@ fec_free(fec_parms *p)
 * and produces as output a packet pointed to by fec, computed
 * with index "index".
 */
-void
-fec_encode(const fec_parms* code, byte *src[], byte fec[], int index, int sz)
+void fec_code::encode(byte *src[], byte fec[], int index, int sz) const
    {
-   const int k = code->k;
-
    if(index < k)
       std::memcpy(fec, src[index], sz*sizeof(byte));
-   else if(index < code->n)
+   else if(index < n)
       {
-      byte* p = &(code->enc_matrix[index*k]);
+      byte* p = &(enc_matrix[index*k]);
       std::memset(fec, 0, sz*sizeof(byte));
       for(int i = 0; i < k; i++)
          addmul(fec, src[i], p[i], sz);
       }
    else
       fprintf(stderr, "Invalid index %d (max %d)\n",
-              index, code->n - 1);
+              index, n - 1);
    }
 
 /*
@@ -641,25 +624,12 @@ fec_encode(const fec_parms* code, byte *src[], byte fec[], int index, int sz)
 *	index: pointer to packet indexes (modified)
 *	sz:    size of each packet
 */
-int
-fec_decode(const fec_parms* code, byte* pkt[], int index[], int sz)
+void fec_code::decode(byte* pkt[], int index[], int sz) const
    {
-   const int k = code->k;
-
    if(shuffle(pkt, index, k))	/* error if true */
-      return 1;
+      throw std::logic_error("fec_code::decode - shuffle failed");
 
-   std::vector<byte> m_dec;
-
-   try
-      {
-      m_dec = build_decode_matrix(code, index);
-      }
-   catch(std::exception& e)
-      {
-      fprintf(stderr, "%s", e.what());
-      return 1;
-      }
+   std::vector<byte> m_dec = build_decode_matrix(k, n, enc_matrix, index);
 
    /*
    * do the actual decoding
@@ -688,6 +658,4 @@ fec_decode(const fec_parms* code, byte* pkt[], int index[], int sz)
          delete[] new_pkt[row];
          }
       }
-
-   return 0;
    }
