@@ -201,18 +201,15 @@ gf_mul(byte x, byte y)
 * unrolled 16 times, a good value for 486 and pentium-class machines.
 * The case c=0 is also optimized, whereas c=1 is not. These
 * calls are unfrequent in my typical apps so I did not bother.
-*
-* Note that gcc on
 */
 #define addmul(dst, src, c, sz)                 \
    if(c != 0) addmul1(dst, src, c, sz)
 
 #define UNROLL 16 /* 1, 4, 8, 16 */
 void
-addmul1(byte *dst1, byte *src1, byte c, int sz)
+addmul1(byte dst[], const byte src[], byte c, int sz)
    {
    USE_GF_MULC;
-   register byte *dst = dst1, *src = src1;
    byte *lim = &dst[sz - UNROLL + 1];
 
    GF_MULC0(c);
@@ -253,16 +250,14 @@ addmul1(byte *dst1, byte *src1, byte c, int sz)
 void
 matmul(byte *a, byte *b, byte *c, int n, int k, int m)
    {
-   int row, col, i;
-
-   for(row = 0; row < n; row++)
+   for(int row = 0; row < n; row++)
       {
-      for(col = 0; col < m; col++)
+      for(int col = 0; col < m; col++)
          {
          byte *pa = &a[ row * k ];
          byte *pb = &b[ col ];
          byte acc = 0;
-         for(i = 0; i < k; i++, pa++, pb += m)
+         for(int i = 0; i < k; i++, pa++, pb += m)
             acc ^= gf_mul(*pa, *pb);
          c[ row * m + col ] = acc;
          }
@@ -365,6 +360,7 @@ void invert_mat(byte *src, int k)
          for(ix = 0; ix < k; ix++)
             pivot_row[ix] = gf_mul(c, pivot_row[ix]);
          }
+
       /*
       * from all rows, remove multiples of the selected row
       * to zero the relevant entry (in fact, the entry is not zero
@@ -387,20 +383,20 @@ void invert_mat(byte *src, int k)
          }
       id_row[icol] = 0;
       } /* done all columns */
+
    for(col = k-1; col >= 0; col--)
       {
       if(indxr[col] <0 || indxr[col] >= k)
          fprintf(stderr, "AARGH, indxr[col] %d\n", indxr[col]);
       else if(indxc[col] <0 || indxc[col] >= k)
          fprintf(stderr, "AARGH, indxc[col] %d\n", indxc[col]);
-      else
-         if(indxr[col] != indxc[col])
+      else if(indxr[col] != indxc[col])
+         {
+         for(row = 0; row < k; row++)
             {
-	    for(row = 0; row < k; row++)
-               {
-               std::swap(src[row*k + indxr[col]], src[row*k + indxc[col]]);
-               }
+            std::swap(src[row*k + indxr[col]], src[row*k + indxc[col]]);
             }
+         }
       }
    }
 
@@ -430,11 +426,12 @@ invert_vdm(byte *src, int k)
    */
    std::vector<byte> c(k), b(k), p(k);
 
-   for(j=1, i = 0; i < k; i++, j+=k)
+   for(j = 1, i = 0; i < k; i++, j+=k)
       {
       c[i] = 0;
       p[i] = src[j];    /* p[i] */
       }
+
    /*
    * construct coeffs. recursively. We know c[k] = 1 (implicit)
    * and start P_0 = x - p_0, then at each stage multiply by
@@ -515,9 +512,11 @@ shuffle(byte *pkt[], int index[], int k)
 * a vector of k*k elements, in row-major order
 */
 std::vector<byte>
-build_decode_matrix(struct fec_parms *code, int index[])
+build_decode_matrix(const fec_parms* code, int index[])
    {
-   int i , k = code->k;
+   const int k = code->k;
+
+   int i;
    byte *p;
 
    std::vector<byte> matrix(k * k);
@@ -547,21 +546,11 @@ build_decode_matrix(struct fec_parms *code, int index[])
 * and then transforming it into a systematic matrix.
 */
 
-void
-fec_free(struct fec_parms *p)
-   {
-   if(p == 0)
-      return;
-
-   delete[] p->enc_matrix;
-   delete p;
-   }
-
 /*
 * create a new encoder, returning a descriptor. This contains k,n and
 * the encoding matrix.
 */
-struct fec_parms *
+fec_parms *
 fec_new(int k, int n)
    {
    int col;
@@ -575,7 +564,7 @@ fec_new(int k, int n)
       return NULL;
       }
 
-   struct fec_parms *retval = new fec_parms;
+   fec_parms *retval = new fec_parms;
    retval->k = k;
    retval->n = n;
    retval->enc_matrix = new byte[n*k];
@@ -613,13 +602,23 @@ fec_new(int k, int n)
    return retval;
    }
 
+void
+fec_free(fec_parms *p)
+   {
+   if(p == 0)
+      return;
+
+   delete[] p->enc_matrix;
+   delete p;
+   }
+
 /*
 * fec_encode accepts as input pointers to n data packets of size sz,
 * and produces as output a packet pointed to by fec, computed
 * with index "index".
 */
 void
-fec_encode(struct fec_parms *code, byte *src[], byte *fec, int index, int sz)
+fec_encode(const fec_parms* code, byte *src[], byte fec[], int index, int sz)
    {
    int i, k = code->k;
    byte *p;
@@ -650,7 +649,7 @@ fec_encode(struct fec_parms *code, byte *src[], byte *fec, int index, int sz)
 *	sz:    size of each packet
 */
 int
-fec_decode(struct fec_parms *code, byte *pkt[], int index[], int sz)
+fec_decode(const fec_parms* code, byte* pkt[], int index[], int sz)
    {
    int row, col , k = code->k;
 
