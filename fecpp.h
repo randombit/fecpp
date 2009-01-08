@@ -12,11 +12,11 @@
 
 typedef unsigned char byte;
 
-struct fec_parms {
-   unsigned int magic;
+struct fec_parms
+   {
    int k, n;  /* parameters of the code */
    byte* enc_matrix;
-} ;
+   };
 
 void fec_free(struct fec_parms *p);
 struct fec_parms* fec_new(int k, int n);

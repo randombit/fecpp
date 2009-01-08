@@ -547,17 +547,11 @@ build_decode_matrix(struct fec_parms *code, int index[])
 * and then transforming it into a systematic matrix.
 */
 
-#define FEC_MAGIC	0xFECC0DEC
-
 void
 fec_free(struct fec_parms *p)
    {
-   if(p==NULL ||
-       p->magic != (((FEC_MAGIC ^ p->k) ^ p->n)))
-      {
-      fprintf(stderr, "bad parameters to fec_free\n");
+   if(p == 0)
       return;
-      }
 
    delete[] p->enc_matrix;
    delete p;
@@ -570,9 +564,7 @@ fec_free(struct fec_parms *p)
 struct fec_parms *
 fec_new(int k, int n)
    {
-   int  col;
-
-   struct fec_parms *retval;
+   int col;
 
    init_fec();
 
@@ -582,15 +574,16 @@ fec_new(int k, int n)
               k, n, 0xFF);
       return NULL;
       }
-   retval = new fec_parms;
+
+   struct fec_parms *retval = new fec_parms;
    retval->k = k;
    retval->n = n;
    retval->enc_matrix = new byte[n*k];
-   retval->magic = ((FEC_MAGIC ^ k) ^ n);
 
    std::vector<byte> tmp_m(n * k);
+
    /*
-   * fill the matrix with powers of field elements, starting from 0.
+   * Fill the matrix with powers of field elements, starting from 0.
    * The first row is special, cannot be computed with exp. table.
    */
    tmp_m[0] = 1;
@@ -609,6 +602,7 @@ fec_new(int k, int n)
    */
    invert_vdm(&tmp_m[0], k); /* much faster than invert_mat */
    matmul(&tmp_m[k*k], &tmp_m[0], retval->enc_matrix + k*k, n - k, k, k);
+
    /*
    * the upper matrix is I so do not bother with a slow multiply
    */
