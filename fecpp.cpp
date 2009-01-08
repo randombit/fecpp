@@ -275,7 +275,7 @@ matmul(byte *a, byte *b, byte *c, int n, int k, int m)
 * one place.
 */
 void *
-my_malloc(int sz, const char *err_string)
+my_malloc(int sz, const char*)
    {
    void *p = malloc(sz);
    if(!p)
@@ -529,7 +529,7 @@ shuffle(byte *pkt[], int index[], int k)
 * a vector of k*k elements, in row-major order
 */
 byte *
-build_decode_matrix(struct fec_parms *code, byte *pkt[], int index[])
+build_decode_matrix(struct fec_parms *code, int index[])
    {
    int i , k = code->k;
    byte *p;
@@ -599,7 +599,7 @@ fec_free(struct fec_parms *p)
 struct fec_parms *
 fec_new(int k, int n)
    {
-   int row, col;
+   int  col;
 
    struct fec_parms *retval;
 
@@ -693,7 +693,7 @@ fec_decode(struct fec_parms *code, byte *pkt[], int index[], int sz)
 
    if(shuffle(pkt, index, k))	/* error if true */
       return 1;
-   m_dec = build_decode_matrix(code, pkt, index);
+   m_dec = build_decode_matrix(code, index);
 
    if(m_dec == NULL)
       return 1; /* error */
