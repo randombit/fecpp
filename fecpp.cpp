@@ -1,20 +1,19 @@
 /*
- * fec.c -- forward error correction based on Vandermonde matrices
+ * Forward error correction based on Vandermonde matrices
  *
  * (C) 1997-98 Luigi Rizzo (luigi@iet.unipi.it)
  * (C) 2009 Jack Lloyd (lloyd@randombit.net)
+ *
  * Distributed under the terms given in license.txt
  */
 
 #include "fecpp.h"
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include <stdexcept>
 #include <vector>
+#include <string.h>
+#include <stdio.h>
 
 namespace {
-
 
 /* Tables for arithetic in GF(2^8) using 1+x^2+x^3+x^4+x^8
  *
@@ -134,7 +133,7 @@ const byte GF_INVERSE[256] = {
 
 /*
  * modnn(x) computes x % GF_SIZE, where GF_SIZE is 2**GF_BITS - 1,
- * without a slow divide.
+F * without a slow divide.
  */
 inline byte modnn(int x)
    {
@@ -268,19 +267,6 @@ matmul(byte *a, byte *b, byte *c, int n, int k, int m)
          c[ row * m + col ] = acc;
          }
       }
-   }
-
-/*
-* i use malloc so many times, it is easier to put checks all in
-* one place.
-*/
-void *
-my_malloc(int sz, const char*)
-   {
-   void *p = malloc(sz);
-   if(!p)
-      throw std::bad_alloc();
-   return p;
    }
 
 /*
@@ -528,45 +514,29 @@ shuffle(byte *pkt[], int index[], int k)
 * indexes. The matrix must be already allocated as
 * a vector of k*k elements, in row-major order
 */
-byte *
+std::vector<byte>
 build_decode_matrix(struct fec_parms *code, int index[])
    {
    int i , k = code->k;
    byte *p;
-   byte* matrix = (byte*)my_malloc(k * k, "gf");
 
-   for(i = 0, p = matrix; i < k; i++, p += k)
+   std::vector<byte> matrix(k * k);
+
+   for(i = 0, p = &matrix[0]; i < k; i++, p += k)
       {
-#if 1 /* this is simply an optimization, not very useful indeed */
       if(index[i] < k)
-         {
+         { /* this is simply an optimization, not very useful indeed */
          memset(p, 0, k*sizeof(byte));
          p[i] = 1;
-         } else
-#endif
-         if(index[i] < code->n)
-            memcpy(p, &(code->enc_matrix[index[i]*k]), k*sizeof(byte));
-         else
-            {
-	    fprintf(stderr, "decode: invalid index %d (max %d)\n",
-                    index[i], code->n - 1);
-	    free(matrix);
-	    return NULL;
-            }
+         }
+      else if(index[i] < code->n)
+         memcpy(p, &(code->enc_matrix[index[i]*k]), k*sizeof(byte));
+      else
+         throw std::logic_error("bad index in build_decode_matrix");
       }
 
-   try
-      {
-      invert_mat(matrix, k);
-      return matrix;
-      }
-   catch(std::exception& e)
-      {
-      fprintf(stderr, "%s", e.what());
-      free(matrix);
-      return NULL;
-      }
-
+   invert_mat(&matrix[0], k);
+   return matrix;
    }
 
 }
@@ -588,8 +558,9 @@ fec_free(struct fec_parms *p)
       fprintf(stderr, "bad parameters to fec_free\n");
       return;
       }
-   free(p->enc_matrix);
-   free(p);
+
+   delete[] p->enc_matrix;
+   delete p;
    }
 
 /*
@@ -611,10 +582,10 @@ fec_new(int k, int n)
               k, n, 0xFF);
       return NULL;
       }
-   retval = (fec_parms*)my_malloc(sizeof(struct fec_parms), "new_code");
+   retval = new fec_parms;
    retval->k = k;
    retval->n = n;
-   retval->enc_matrix = (byte*)my_malloc(n * k, "gf");
+   retval->enc_matrix = new byte[n*k];
    retval->magic = ((FEC_MAGIC ^ k) ^ n);
 
    std::vector<byte> tmp_m(n * k);
@@ -687,30 +658,39 @@ fec_encode(struct fec_parms *code, byte *src[], byte *fec, int index, int sz)
 int
 fec_decode(struct fec_parms *code, byte *pkt[], int index[], int sz)
    {
-   byte *m_dec;
-   byte **new_pkt;
    int row, col , k = code->k;
 
    if(shuffle(pkt, index, k))	/* error if true */
       return 1;
-   m_dec = build_decode_matrix(code, index);
 
-   if(m_dec == NULL)
-      return 1; /* error */
+   std::vector<byte> m_dec;
+
+   try
+      {
+      m_dec = build_decode_matrix(code, index);
+      }
+   catch(std::exception& e)
+      {
+      fprintf(stderr, "%s", e.what());
+      return 1;
+      }
+
    /*
    * do the actual decoding
    */
-   new_pkt = (byte**)my_malloc (k * sizeof (byte *), "new pkt pointers");
+   std::vector<byte*> new_pkt(k);
+
    for(row = 0; row < k; row++)
       {
       if(index[row] >= k)
          {
-         new_pkt[row] = (byte*)my_malloc (sz * sizeof (byte), "new pkt buffer");
+         new_pkt[row] = new byte[sz];
          memset(new_pkt[row], 0, sz * sizeof(byte));
          for(col = 0; col < k; col++)
             addmul(new_pkt[row], pkt[col], m_dec[row*k + col], sz);
          }
       }
+
    /*
    * move pkts to their final destination
    */
@@ -719,11 +699,9 @@ fec_decode(struct fec_parms *code, byte *pkt[], int index[], int sz)
       if(index[row] >= k)
          {
          memcpy(pkt[row], new_pkt[row], sz*sizeof(byte));
-         free(new_pkt[row]);
+         delete[] new_pkt[row];
          }
       }
-   free(new_pkt);
-   free(m_dec);
 
    return 0;
    }
