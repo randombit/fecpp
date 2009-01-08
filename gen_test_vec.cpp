@@ -46,6 +46,9 @@ void gen_test_vector(int k, int n)
 
    printf("\n");
 
+   delete[] fec;
+   delete[] buf;
+
    fec_free(code);
 
    }

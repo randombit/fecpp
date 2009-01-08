@@ -104,6 +104,9 @@ bool check_recovery(byte k, byte n, const std::string& hex_input,
       }
    //printf("\n");
 
+   for(int i = 0; i != k; ++i)
+      delete[] pkts[i];
+
    delete[] pkts;
    delete[] indexes;
 
