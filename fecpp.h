@@ -19,7 +19,6 @@ struct fec_parms {
 void fec_free(struct fec_parms *p);
 struct fec_parms* fec_new(int k, int n);
 
-void init_fec() ;
 void fec_encode(struct fec_parms *code, byte *src[], byte *fec, int index, int sz);
 int fec_decode(struct fec_parms *code, byte *pkt[], int index[], int sz);
 
