@@ -10,8 +10,8 @@
 #include "fecpp.h"
 #include <stdexcept>
 #include <vector>
-#include <string.h>
-#include <stdio.h>
+#include <cstring>
+//#include <stdio.h>
 
 namespace {
 
@@ -133,7 +133,7 @@ const byte GF_INVERSE[256] = {
 
 /*
  * modnn(x) computes x % GF_SIZE, where GF_SIZE is 2**GF_BITS - 1,
-F * without a slow divide.
+ * without a slow divide.
  */
 inline byte modnn(int x)
    {
@@ -167,29 +167,40 @@ static byte gf_mul_table[0xFF + 1][0xFF + 1];
 void
 init_mul_table()
    {
-   int i, j;
-   for(i=0; i< 0xFF+1; i++)
-      for(j=0; j< 0xFF+1; j++)
-         gf_mul_table[i][j] = GF_EXP[modnn(GF_LOG[i] + GF_LOG[j]) ] ;
+   for(int i = 0; i < 256; ++i)
+      for(int j = 0; j < 256; ++j)
+         gf_mul_table[i][j] = GF_EXP[modnn(GF_LOG[i] + GF_LOG[j])];
 
-   for(j=0; j< 0xFF+1; j++)
-      gf_mul_table[0][j] = gf_mul_table[j][0] = 0;
+   for(int i = 0; i < 256; ++i)
+      gf_mul_table[0][i] = gf_mul_table[i][0] = 0;
    }
 #else
-// for larger values of GF_BITS
-inline byte
-gf_mul(byte x, byte y)
-   {
-   if((x) == 0 || (y)==0) return 0;
 
-   return GF_EXP[GF_LOG[x] + GF_LOG[y] ] ;
+inline byte gf_mul(byte x, byte y)
+   {
+   if(x == 0 || y == 0)
+      return 0;
+
+   return GF_EXP[GF_LOG[x] + GF_LOG[y]];
    }
+
 #define init_mul_table()
 
 #define USE_GF_MULC register const byte * __gf_mulc_
-#define GF_MULC0(c) __gf_mulc_ = &GF_EXP[ GF_LOG[c] ]
-#define GF_ADDMULC(dst, x) { if(x) dst ^= __gf_mulc_[ GF_LOG[x] ] ; }
+#define GF_MULC0(c) __gf_mulc_ = &GF_EXP[GF_LOG[c]]
+#define GF_ADDMULC(dst, x) { if(x) dst ^= __gf_mulc_[GF_LOG[x]]; }
 #endif
+
+void init_fec()
+   {
+   static int fec_initialized = 0;
+
+   if(!fec_initialized)
+      {
+      init_mul_table();
+      fec_initialized = 1;
+      }
+   }
 
 /*
 * Various linear algebra operations that i use often.
@@ -273,7 +284,7 @@ matmul(byte *a, byte *b, byte *c, int n, int k, int m)
 void invert_mat(byte *src, int k)
    {
    byte c, *p;
-   int irow, icol, row, col, i, ix;
+   int irow, icol;
 
    std::vector<int> indxc(k);
    std::vector<int> indxr(k);
@@ -284,10 +295,10 @@ void invert_mat(byte *src, int k)
    /*
    * ipiv marks elements already used as pivots.
    */
-   for(i = 0; i < k; i++)
+   for(int i = 0; i < k; i++)
       ipiv[i] = 0;
 
-   for(col = 0; col < k; col++)
+   for(int col = 0; col < k; col++)
       {
       byte *pivot_row;
       /*
@@ -303,10 +314,11 @@ void invert_mat(byte *src, int k)
          goto found_piv;
          }
 
-      for(row = 0; row < k; row++)
+      for(int row = 0; row < k; row++)
          {
          if(ipiv[row] != 1)
             {
+            int ix;
             for(ix = 0; ix < k; ix++)
                {
                if(ipiv[ix] == 0)
@@ -329,6 +341,7 @@ void invert_mat(byte *src, int k)
 
       found_piv:
       ++(ipiv[icol]);
+
       /*
       * swap rows irow and icol, so afterwards the diagonal
       * element will be correct. Rarely done, not worth
@@ -336,11 +349,10 @@ void invert_mat(byte *src, int k)
       */
       if(irow != icol)
          {
-         for(ix = 0; ix < k; ix++)
-            {
-            std::swap(src[irow*k + ix], src[icol*k + ix]);
-            }
+         for(int i = 0; i < k; i++)
+            std::swap(src[irow*k + i], src[icol*k + i]);
          }
+
       indxr[col] = irow;
       indxc[col] = icol;
       pivot_row = &src[icol*k];
@@ -355,10 +367,10 @@ void invert_mat(byte *src, int k)
          * this is done often , but optimizing is not so
          * fruitful, at least in the obvious ways (unrolling)
          */
-         c = GF_INVERSE[ c ];
+         c = GF_INVERSE[c];
          pivot_row[icol] = 1;
-         for(ix = 0; ix < k; ix++)
-            pivot_row[ix] = gf_mul(c, pivot_row[ix]);
+         for(int i = 0; i < k; i++)
+            pivot_row[i] = gf_mul(c, pivot_row[i]);
          }
 
       /*
@@ -371,9 +383,10 @@ void invert_mat(byte *src, int k)
       id_row[icol] = 1;
       if(memcmp(pivot_row, &id_row[0], k*sizeof(byte)) != 0)
          {
-         for(p = src, ix = 0; ix < k; ix++, p += k)
+         int i;
+         for(p = src, i = 0; i < k; i++, p += k)
             {
-            if(ix != icol)
+            if(i != icol)
                {
                c = p[icol];
                p[icol] = 0;
@@ -384,18 +397,16 @@ void invert_mat(byte *src, int k)
       id_row[icol] = 0;
       } /* done all columns */
 
-   for(col = k-1; col >= 0; col--)
+   for(int col = k-1; col >= 0; col--)
       {
-      if(indxr[col] <0 || indxr[col] >= k)
+      if(indxr[col] < 0 || indxr[col] >= k)
          fprintf(stderr, "AARGH, indxr[col] %d\n", indxr[col]);
       else if(indxc[col] <0 || indxc[col] >= k)
          fprintf(stderr, "AARGH, indxc[col] %d\n", indxc[col]);
       else if(indxr[col] != indxc[col])
          {
-         for(row = 0; row < k; row++)
-            {
+         for(int row = 0; row < k; row++)
             std::swap(src[row*k + indxr[col]], src[row*k + indxc[col]]);
-            }
          }
       }
    }
@@ -415,18 +426,16 @@ void invert_mat(byte *src, int k)
 int
 invert_vdm(byte *src, int k)
    {
-   int i, j, row, col;
-   byte t, xx;
-
    if(k == 1) 	/* degenerate case, matrix must be p^0 = 1 */
       return 0;
+
    /*
    * c holds the coefficient of P(x) = Prod (x - p_i), i=0..k-1
    * b holds the coefficient for the matrix inversion
    */
    std::vector<byte> c(k), b(k), p(k);
 
-   for(j = 1, i = 0; i < k; i++, j+=k)
+   for(int j = 1, i = 0; i < k; i++, j+=k)
       {
       c[i] = 0;
       p[i] = src[j];    /* p[i] */
@@ -439,43 +448,30 @@ invert_vdm(byte *src, int k)
    * After k steps we are done.
    */
    c[k-1] = p[0];	/* really -p(0), but x = -x in GF(2^m) */
-   for(i = 1; i < k; i++)
+   for(int i = 1; i < k; i++)
       {
       byte p_i = p[i]; /* see above comment */
-      for(j = k-1  - (i - 1); j < k-1; j++)
+      for(int j = k-1  - (i - 1); j < k-1; j++)
          c[j] ^= gf_mul(p_i, c[j+1]);
       c[k-1] ^= p_i;
       }
 
-   for(row = 0; row < k; row++)
+   for(int row = 0; row < k; row++)
       {
-      /*
-      * synthetic division etc.
-      */
-      xx = p[row];
-      t = 1;
+      // synthetic division etc.
+      byte xx = p[row];
+      byte t = 1;
       b[k-1] = 1; /* this is in fact c[k] */
-      for(i = k-2; i >= 0; i--)
+      for(int i = k-2; i >= 0; i--)
          {
          b[i] = c[i+1] ^ gf_mul(xx, b[i+1]);
          t = gf_mul(xx, t) ^ b[i];
          }
-      for(col = 0; col < k; col++)
+      for(int col = 0; col < k; col++)
          src[col*k + row] = gf_mul(GF_INVERSE[t], b[col]);
       }
 
    return 0;
-   }
-
-void init_fec()
-   {
-   static int fec_initialized = 0;
-
-   if(!fec_initialized)
-      {
-      init_mul_table();
-      fec_initialized = 1;
-      }
    }
 
 /*
@@ -516,20 +512,20 @@ build_decode_matrix(const fec_parms* code, int index[])
    {
    const int k = code->k;
 
+   std::vector<byte> matrix(k * k);
+
    int i;
    byte *p;
-
-   std::vector<byte> matrix(k * k);
 
    for(i = 0, p = &matrix[0]; i < k; i++, p += k)
       {
       if(index[i] < k)
          { /* this is simply an optimization, not very useful indeed */
-         memset(p, 0, k*sizeof(byte));
+         std::memset(p, 0, k*sizeof(byte));
          p[i] = 1;
          }
       else if(index[i] < code->n)
-         memcpy(p, &(code->enc_matrix[index[i]*k]), k*sizeof(byte));
+         std::memcpy(p, &(code->enc_matrix[index[i]*k]), k*sizeof(byte));
       else
          throw std::logic_error("bad index in build_decode_matrix");
       }
@@ -553,11 +549,9 @@ build_decode_matrix(const fec_parms* code, int index[])
 fec_parms *
 fec_new(int k, int n)
    {
-   int col;
-
    init_fec();
 
-   if(k > 0xFF + 1 || n > 0xFF + 1 || k > n)
+   if(k > 256 || n > 256 || k > n)
       {
       fprintf(stderr, "Invalid parameters k %d n %d GF_SIZE %d\n",
               k, n, 0xFF);
@@ -576,11 +570,11 @@ fec_new(int k, int n)
    * The first row is special, cannot be computed with exp. table.
    */
    tmp_m[0] = 1;
-   for(col = 1; col < k; col++)
+   for(int col = 1; col < k; col++)
       tmp_m[col] = 0;
    for(byte* p = &tmp_m[k], row = 0; row < n-1; row++, p += k)
       {
-      for(col = 0; col < k; col ++)
+      for(int col = 0; col < k; col ++)
          p[col] = GF_EXP[modnn(row*col)];
       }
 
@@ -595,7 +589,7 @@ fec_new(int k, int n)
    /*
    * the upper matrix is I so do not bother with a slow multiply
    */
-   memset(retval->enc_matrix, 0, k*k*sizeof(byte));
+   std::memset(retval->enc_matrix, 0, k*k*sizeof(byte));
    for(byte* p = retval->enc_matrix, col = 0; col < k; col++, p += k+1)
       *p = 1;
 
@@ -620,16 +614,15 @@ fec_free(fec_parms *p)
 void
 fec_encode(const fec_parms* code, byte *src[], byte fec[], int index, int sz)
    {
-   int i, k = code->k;
-   byte *p;
+   const int k = code->k;
 
    if(index < k)
-      memcpy(fec, src[index], sz*sizeof(byte));
+      std::memcpy(fec, src[index], sz*sizeof(byte));
    else if(index < code->n)
       {
-      p = &(code->enc_matrix[index*k]);
-      memset(fec, 0, sz*sizeof(byte));
-      for(i = 0; i < k; i++)
+      byte* p = &(code->enc_matrix[index*k]);
+      std::memset(fec, 0, sz*sizeof(byte));
+      for(int i = 0; i < k; i++)
          addmul(fec, src[i], p[i], sz);
       }
    else
@@ -651,7 +644,7 @@ fec_encode(const fec_parms* code, byte *src[], byte fec[], int index, int sz)
 int
 fec_decode(const fec_parms* code, byte* pkt[], int index[], int sz)
    {
-   int row, col , k = code->k;
+   const int k = code->k;
 
    if(shuffle(pkt, index, k))	/* error if true */
       return 1;
@@ -673,13 +666,13 @@ fec_decode(const fec_parms* code, byte* pkt[], int index[], int sz)
    */
    std::vector<byte*> new_pkt(k);
 
-   for(row = 0; row < k; row++)
+   for(int row = 0; row < k; row++)
       {
       if(index[row] >= k)
          {
          new_pkt[row] = new byte[sz];
-         memset(new_pkt[row], 0, sz * sizeof(byte));
-         for(col = 0; col < k; col++)
+         std::memset(new_pkt[row], 0, sz * sizeof(byte));
+         for(int col = 0; col < k; col++)
             addmul(new_pkt[row], pkt[col], m_dec[row*k + col], sz);
          }
       }
@@ -687,11 +680,11 @@ fec_decode(const fec_parms* code, byte* pkt[], int index[], int sz)
    /*
    * move pkts to their final destination
    */
-   for(row = 0; row < k; row++)
+   for(int row = 0; row < k; row++)
       {
       if(index[row] >= k)
          {
-         memcpy(pkt[row], new_pkt[row], sz*sizeof(byte));
+         std::memcpy(pkt[row], new_pkt[row], sz*sizeof(byte));
          delete[] new_pkt[row];
          }
       }
