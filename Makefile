@@ -1,6 +1,7 @@
 
 CC=g++
-CFLAGS=-O2 -g -DGF_BITS=8 -Wall -Wextra
+WARNINGS= -Wall -Wextra
+CFLAGS=-O2 -g $(WARNINGS)
 
 all: test_fec test_recovery gen_test_vec
 

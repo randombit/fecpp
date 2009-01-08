@@ -131,13 +131,11 @@ const byte GF_INVERSE[256] = {
 0xB5, 0xEA, 0x03, 0x8F, 0xD3, 0xC9, 0x42, 0xD4, 0xE8, 0x75, 0x7F,
 0xFF, 0x7E, 0xFD };
 
-}
-
 /*
  * modnn(x) computes x % GF_SIZE, where GF_SIZE is 2**GF_BITS - 1,
  * without a slow divide.
  */
-static inline byte modnn(int x)
+inline byte modnn(int x)
    {
    while(x >= 0xFF)
       {
@@ -166,7 +164,7 @@ static byte gf_mul_table[0xFF + 1][0xFF + 1];
 #define GF_MULC0(c) __gf_mulc_ = gf_mul_table[c]
 #define GF_ADDMULC(dst, x) dst ^= __gf_mulc_[x]
 
-static void
+void
 init_mul_table()
    {
    int i, j;
@@ -179,7 +177,7 @@ init_mul_table()
    }
 #else
 // for larger values of GF_BITS
-static inline byte
+inline byte
 gf_mul(byte x, byte y)
    {
    if((x) == 0 || (y)==0) return 0;
@@ -210,7 +208,7 @@ gf_mul(byte x, byte y)
    if(c != 0) addmul1(dst, src, c, sz)
 
 #define UNROLL 16 /* 1, 4, 8, 16 */
-static void
+void
 addmul1(byte *dst1, byte *src1, byte c, int sz)
    {
    USE_GF_MULC;
@@ -252,7 +250,7 @@ addmul1(byte *dst1, byte *src1, byte c, int sz)
 /*
 * computes C = AB where A is n*k, B is k*m, C is n*m
 */
-static void
+void
 matmul(byte *a, byte *b, byte *c, int n, int k, int m)
    {
    int row, col, i;
@@ -276,7 +274,7 @@ matmul(byte *a, byte *b, byte *c, int n, int k, int m)
 * returns 1 if the square matrix is identiy
 * (only for test)
 */
-static int
+int
 is_identity(byte *m, int k)
    {
    int row, col;
@@ -295,7 +293,7 @@ is_identity(byte *m, int k)
 * i use malloc so many times, it is easier to put checks all in
 * one place.
 */
-static void *
+void *
 my_malloc(int sz, const char *err_string)
    {
    void *p = malloc(sz);
@@ -311,7 +309,7 @@ my_malloc(int sz, const char *err_string)
 * (Gauss-Jordan, adapted from Numerical Recipes in C)
 * Return non-zero if singular.
 */
-static int
+int
 invert_mat(byte *src, int k)
    {
    byte c, *p;
@@ -528,7 +526,7 @@ invert_vdm(byte *src, int k)
    return 0;
    }
 
-static void init_fec()
+void init_fec()
    {
    static int fec_initialized = 0;
 
@@ -538,6 +536,76 @@ static void init_fec()
       fec_initialized = 1;
       }
    }
+
+
+/*
+* shuffle move src packets in their position
+*/
+int
+shuffle(byte *pkt[], int index[], int k)
+   {
+   for(int i = 0; i < k;)
+      {
+      if(index[i] >= k || index[i] == i)
+         i++;
+      else
+         {
+         /*
+         * put pkt in the right position (first check for conflicts).
+         */
+         int c = index[i];
+
+         if(index[c] == c)
+            {
+            return 1;
+	    }
+         std::swap(index[i], index[c]);
+         std::swap(pkt[i], pkt[c]);
+         }
+      }
+   return 0;
+   }
+
+/*
+* build_decode_matrix constructs the encoding matrix given the
+* indexes. The matrix must be already allocated as
+* a vector of k*k elements, in row-major order
+*/
+byte *
+build_decode_matrix(struct fec_parms *code, byte *pkt[], int index[])
+   {
+   int i , k = code->k;
+   byte *p;
+   byte* matrix = (byte*)my_malloc(k * k, "gf");
+
+   for(i = 0, p = matrix; i < k; i++, p += k)
+      {
+#if 1 /* this is simply an optimization, not very useful indeed */
+      if(index[i] < k)
+         {
+         memset(p, 0, k*sizeof(byte));
+         p[i] = 1;
+         } else
+#endif
+         if(index[i] < code->n)
+            memcpy(p, &(code->enc_matrix[index[i]*k]), k*sizeof(byte));
+         else
+            {
+	    fprintf(stderr, "decode: invalid index %d (max %d)\n",
+                    index[i], code->n - 1);
+	    free(matrix);
+	    return NULL;
+            }
+      }
+   if(invert_mat(matrix, k))
+      {
+      free(matrix);
+      matrix = NULL;
+      }
+   return matrix;
+   }
+
+}
 
 /*
 * This section contains the proper FEC encoding/decoding routines.
@@ -642,73 +710,6 @@ fec_encode(struct fec_parms *code, byte *src[], byte *fec, int index, int sz)
    }
 
 /*
-* shuffle move src packets in their position
-*/
-static int
-shuffle(byte *pkt[], int index[], int k)
-   {
-   for(int i = 0; i < k;)
-      {
-      if(index[i] >= k || index[i] == i)
-         i++;
-      else
-         {
-         /*
-         * put pkt in the right position (first check for conflicts).
-         */
-         int c = index[i];
-
-         if(index[c] == c)
-            {
-            return 1;
-	    }
-         std::swap(index[i], index[c]);
-         std::swap(pkt[i], pkt[c]);
-         }
-      }
-   return 0;
-   }
-
-/*
-* build_decode_matrix constructs the encoding matrix given the
-* indexes. The matrix must be already allocated as
-* a vector of k*k elements, in row-major order
-*/
-static byte *
-build_decode_matrix(struct fec_parms *code, byte *pkt[], int index[])
-   {
-   int i , k = code->k;
-   byte *p;
-   byte* matrix = (byte*)my_malloc(k * k, "gf");
-
-   for(i = 0, p = matrix; i < k; i++, p += k)
-      {
-#if 1 /* this is simply an optimization, not very useful indeed */
-      if(index[i] < k)
-         {
-         memset(p, 0, k*sizeof(byte));
-         p[i] = 1;
-         } else
-#endif
-         if(index[i] < code->n)
-            memcpy(p, &(code->enc_matrix[index[i]*k]), k*sizeof(byte));
-         else
-            {
-	    fprintf(stderr, "decode: invalid index %d (max %d)\n",
-                    index[i], code->n - 1);
-	    free(matrix);
-	    return NULL;
-            }
-      }
-   if(invert_mat(matrix, k))
-      {
-      free(matrix);
-      matrix = NULL;
-      }
-   return matrix;
-   }
-
-/*
 * fec_decode receives as input a vector of packets, the indexes of
 * packets, and produces the correct vector as output.
 *
@@ -762,31 +763,3 @@ fec_decode(struct fec_parms *code, byte *pkt[], int index[], int sz)
 
    return 0;
    }
-
-/*********** end of FEC code -- beginning of test code ************/
-
-#if(TEST || DEBUG)
-void
-test_gf()
-   {
-   int i;
-   /*
-   * test gf tables. Sufficiently tested...
-   */
-   for(i=0; i<= 0xFF; i++)
-      {
-      if(GF_EXP[GF_LOG[i]] != i)
-         fprintf(stderr, "bad exp/log i %d log %d exp(log) %d\n",
-                 i, GF_LOG[i], GF_EXP[GF_LOG[i]]);
-
-      if(i != 0 && gf_mul(i, GF_INVERSE[i]) != 1)
-         fprintf(stderr, "bad mul/inv i %d inv %d i*inv(i) %d\n",
-                 i, GF_INVERSE[i], gf_mul(i, GF_INVERSE[i]));
-      if(gf_mul(0,i) != 0)
-         fprintf(stderr, "bad mul table 0,%d\n",i);
-      if(gf_mul(i,0) != 0)
-         fprintf(stderr, "bad mul table %d,0\n",i);
-      }
-   }
-
-#endif /* TEST */
