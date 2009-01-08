@@ -269,26 +269,6 @@ matmul(byte *a, byte *b, byte *c, int n, int k, int m)
       }
    }
 
-#ifdef DEBUG
-/*
-* returns 1 if the square matrix is identiy
-* (only for test)
-*/
-int
-is_identity(byte *m, int k)
-   {
-   int row, col;
-   for(row=0; row<k; row++)
-      for(col=0; col<k; col++)
-         if((row==col && *m != 1) ||
-              (row!=col && *m != 0))
-            return 0;
-         else
-            m++;
-   return 1;
-   }
-#endif /* debug */
-
 /*
 * i use malloc so many times, it is easier to put checks all in
 * one place.
@@ -301,7 +281,6 @@ my_malloc(int sz, const char *err_string)
       throw std::bad_alloc();
    return p;
    }
-
 
 /*
 * invert_mat() takes a matrix and produces its inverse
@@ -704,7 +683,8 @@ fec_encode(struct fec_parms *code, byte *src[], byte *fec, int index, int sz)
       memset(fec, 0, sz*sizeof(byte));
       for(i = 0; i < k; i++)
          addmul(fec, src[i], p[i], sz);
-      } else
+      }
+   else
       fprintf(stderr, "Invalid index %d (max %d)\n",
               index, code->n - 1);
    }
