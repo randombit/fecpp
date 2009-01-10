@@ -11,7 +11,7 @@
 #include <stdexcept>
 #include <vector>
 #include <cstring>
-//#include <stdio.h>
+#include <sstream>
 
 namespace {
 
@@ -145,6 +145,13 @@ inline byte modnn(int x)
    return x;
    }
 
+std::string to_string(size_t i)
+   {
+   std::ostringstream o;
+   o << i;
+   return o.str();
+   }
+
 /*
 * gf_mul(x,y) multiplies two numbers. If GF_BITS<=8, it is much
 * faster to use a multiplication table.
@@ -155,50 +162,29 @@ inline byte modnn(int x)
 * A value related to the multiplication is held in a local variable
 * declared with USE_GF_MULC . See usage in addmul1().
 */
-#if 1
 static byte gf_mul_table[0xFF + 1][0xFF + 1];
 
 #define gf_mul(x,y) gf_mul_table[x][y]
 
-#define USE_GF_MULC register byte * __gf_mulc_
-#define GF_MULC0(c) __gf_mulc_ = gf_mul_table[c]
-#define GF_ADDMULC(dst, x) dst ^= __gf_mulc_[x]
-
 void
 init_mul_table()
    {
-   for(int i = 0; i < 256; ++i)
-      for(int j = 0; j < 256; ++j)
+   for(size_t i = 0; i < 256; ++i)
+      for(size_t j = 0; j < 256; ++j)
          gf_mul_table[i][j] = GF_EXP[(GF_LOG[i] + GF_LOG[j]) % 255];
 
-   for(int i = 0; i < 256; ++i)
+   for(size_t i = 0; i < 256; ++i)
       gf_mul_table[0][i] = gf_mul_table[i][0] = 0;
    }
-#else
-
-inline byte gf_mul(byte x, byte y)
-   {
-   if(x == 0 || y == 0)
-      return 0;
-
-   return GF_EXP[GF_LOG[x] + GF_LOG[y]];
-   }
-
-#define init_mul_table()
-
-#define USE_GF_MULC register const byte * __gf_mulc_
-#define GF_MULC0(c) __gf_mulc_ = &GF_EXP[GF_LOG[c]]
-#define GF_ADDMULC(dst, x) { if(x) dst ^= __gf_mulc_[GF_LOG[x]]; }
-#endif
 
 void init_fec()
    {
-   static int fec_initialized = 0;
+   static bool fec_initialized = false;
 
    if(!fec_initialized)
       {
+      fec_initialized = true;
       init_mul_table();
-      fec_initialized = 1;
       }
    }
 
@@ -216,57 +202,50 @@ void init_fec()
 #define addmul(dst, src, c, sz)                 \
    if(c != 0) addmul1(dst, src, c, sz)
 
-#define UNROLL 16 /* 1, 4, 8, 16 */
-void
-addmul1(byte dst[], const byte src[], byte c, int sz)
+void addmul1(byte dst[], const byte src[], byte c, int sz)
    {
-   USE_GF_MULC;
-   byte *lim = &dst[sz - UNROLL + 1];
+#define GF_ADDMULC(dst, x) dst ^= __gf_mulc_[x]
 
-   GF_MULC0(c);
+   const byte* mul_base = gf_mul_table[c];
+   byte *lim = &dst[sz - 16 + 1];
 
-#if(UNROLL > 1) /* unrolling by 8/16 is quite effective on the pentium */
-   for(; dst < lim; dst += UNROLL, src += UNROLL)
+   for(; dst < lim; dst += 16, src += 16)
       {
-      GF_ADDMULC(dst[0] , src[0]);
-      GF_ADDMULC(dst[1] , src[1]);
-      GF_ADDMULC(dst[2] , src[2]);
-      GF_ADDMULC(dst[3] , src[3]);
-#if(UNROLL > 4)
-      GF_ADDMULC(dst[4] , src[4]);
-      GF_ADDMULC(dst[5] , src[5]);
-      GF_ADDMULC(dst[6] , src[6]);
-      GF_ADDMULC(dst[7] , src[7]);
-#endif
-#if(UNROLL > 8)
-      GF_ADDMULC(dst[8] , src[8]);
-      GF_ADDMULC(dst[9] , src[9]);
-      GF_ADDMULC(dst[10] , src[10]);
-      GF_ADDMULC(dst[11] , src[11]);
-      GF_ADDMULC(dst[12] , src[12]);
-      GF_ADDMULC(dst[13] , src[13]);
-      GF_ADDMULC(dst[14] , src[14]);
-      GF_ADDMULC(dst[15] , src[15]);
-#endif
+      dst[0] ^= mul_base[src[0]];
+      dst[1] ^= mul_base[src[1]];
+      dst[2] ^= mul_base[src[2]];
+      dst[3] ^= mul_base[src[3]];
+      dst[4] ^= mul_base[src[4]];
+      dst[5] ^= mul_base[src[5]];
+      dst[6] ^= mul_base[src[6]];
+      dst[7] ^= mul_base[src[7]];
+      dst[8] ^= mul_base[src[8]];
+      dst[9] ^= mul_base[src[9]];
+      dst[10] ^= mul_base[src[10]];
+      dst[11] ^= mul_base[src[11]];
+      dst[12] ^= mul_base[src[12]];
+      dst[13] ^= mul_base[src[13]];
+      dst[14] ^= mul_base[src[14]];
+      dst[15] ^= mul_base[src[15]];
       }
-#endif
-   lim += UNROLL - 1;
+
+   lim += 16 - 1;
    for(; dst < lim; dst++, src++)            /* final components */
-      GF_ADDMULC(*dst , *src);
+      *dst ^= mul_base[*src];
    }
 
 /*
 * computes C = AB where A is n*k, B is k*m, C is n*m
 */
 void
-matmul(byte *a, byte *b, byte *c, int n, int k, int m)
+matmul(const byte a[], const byte b[], byte *c, int n, int k, int m)
    {
    for(int row = 0; row < n; row++)
       {
       for(int col = 0; col < m; col++)
          {
-         byte *pa = &a[ row * k ];
-         byte *pb = &b[ col ];
+         const byte *pa = &a[ row * k ];
+         const byte *pb = &b[ col ];
          byte acc = 0;
          for(int i = 0; i < k; i++, pa++, pb += m)
             acc ^= gf_mul(*pa, *pb);
@@ -364,7 +343,7 @@ void invert_mat(byte *src, int k)
       if(c != 1)
          { /* otherwhise this is a NOP */
          /*
-         * this is done often , but optimizing is not so
+         * this is done often, but optimizing is not so
          * fruitful, at least in the obvious ways (unrolling)
          */
          c = GF_INVERSE[c];
@@ -478,9 +457,9 @@ invert_vdm(byte *src, int k)
 * shuffle move src packets in their position
 */
 int
-shuffle(byte *pkt[], int index[], int k)
+shuffle(byte *pkt[], size_t index[], size_t k)
    {
-   for(int i = 0; i < k;)
+   for(size_t i = 0; i < k;)
       {
       if(index[i] >= k || index[i] == i)
          i++;
@@ -489,7 +468,7 @@ shuffle(byte *pkt[], int index[], int k)
          /*
          * put pkt in the right position (first check for conflicts).
          */
-         int c = index[i];
+         size_t c = index[i];
 
          if(index[c] == c)
             {
@@ -508,11 +487,12 @@ shuffle(byte *pkt[], int index[], int k)
 * a vector of k*k elements, in row-major order
 */
 std::vector<byte>
-build_decode_matrix(int k, int n, const byte* enc_matrix, int index[])
+build_decode_matrix(size_t k, size_t n,
+                    const byte* enc_matrix, size_t index[])
    {
    std::vector<byte> matrix(k * k);
 
-   int i;
+   size_t i;
    byte *p;
 
    for(i = 0, p = &matrix[0]; i < k; i++, p += k)
@@ -544,17 +524,16 @@ build_decode_matrix(int k, int n, const byte* enc_matrix, int index[])
 * create a new encoder, returning a descriptor. This contains k,n and
 * the encoding matrix.
 */
-fec_code::fec_code(size_t k_arg, size_t n_arg) : k(k_arg), n(n_arg)
+fec_code::fec_code(size_t k_arg, size_t n_arg) :
+   k(k_arg), n(n_arg), enc_matrix(n * k)
    {
    init_fec();
 
-   if(k > n)
+   if(k > 256 || n > 256 || k > n)
       {
       printf("%d > %d\n", k, n);
       throw std::invalid_argument("fec_code: k must be <= n");
       }
-
-   this->enc_matrix = new byte[n*k];
 
    std::vector<byte> tmp_m(n * k);
 
@@ -563,11 +542,11 @@ fec_code::fec_code(size_t k_arg, size_t n_arg) : k(k_arg), n(n_arg)
    * The first row is special, cannot be computed with exp. table.
    */
    tmp_m[0] = 1;
-   for(int col = 1; col < k; col++)
+   for(size_t col = 1; col < k; col++)
       tmp_m[col] = 0;
    for(byte* p = &tmp_m[k], row = 0; row < n-1; row++, p += k)
       {
-      for(int col = 0; col < k; col ++)
+      for(size_t col = 0; col < k; col ++)
          p[col] = GF_EXP[(row*col) % 255];
       }
 
@@ -577,19 +556,14 @@ fec_code::fec_code(size_t k_arg, size_t n_arg) : k(k_arg), n(n_arg)
    * by the inverse, and construct the identity matrix at the top.
    */
    invert_vdm(&tmp_m[0], k); /* much faster than invert_mat */
-   matmul(&tmp_m[k*k], &tmp_m[0], this->enc_matrix + k*k, n - k, k, k);
+   matmul(&tmp_m[k*k], &tmp_m[0], &this->enc_matrix[k*k], n - k, k, k);
 
    /*
    * the upper matrix is I so do not bother with a slow multiply
    */
-   std::memset(this->enc_matrix, 0, k*k*sizeof(byte));
-   for(byte* p = this->enc_matrix, col = 0; col < k; col++, p += k+1)
+   std::memset(&this->enc_matrix[0], 0, k*k*sizeof(byte));
+   for(byte* p = &this->enc_matrix[0], col = 0; col < k; col++, p += k+1)
       *p = 1;
-   }
-
-fec_code::~fec_code()
-   {
-   delete[] this->enc_matrix;
    }
 
 /*
@@ -597,20 +571,21 @@ fec_code::~fec_code()
 * and produces as output a packet pointed to by fec, computed
 * with index "index".
 */
-void fec_code::encode(byte *src[], byte fec[], int index, int sz) const
+void fec_code::encode(byte *src[], byte fec[], size_t index, size_t sz) const
    {
+   if(index >= n)
+      throw std::invalid_argument("Invalid packet index to encode " +
+                                  to_string(index));
+
    if(index < k)
       std::memcpy(fec, src[index], sz*sizeof(byte));
-   else if(index < n)
+   else
       {
-      byte* p = &(enc_matrix[index*k]);
+      const byte* p = &(enc_matrix[index*k]);
       std::memset(fec, 0, sz*sizeof(byte));
-      for(int i = 0; i < k; i++)
+      for(size_t i = 0; i < k; i++)
          addmul(fec, src[i], p[i], sz);
       }
-   else
-      fprintf(stderr, "Invalid index %d (max %d)\n",
-              index, n - 1);
    }
 
 /*
@@ -624,25 +599,25 @@ void fec_code::encode(byte *src[], byte fec[], int index, int sz) const
 *	index: pointer to packet indexes (modified)
 *	sz:    size of each packet
 */
-void fec_code::decode(byte* pkt[], int index[], int sz) const
+void fec_code::decode(byte* pkt[], size_t index[], size_t sz) const
    {
    if(shuffle(pkt, index, k))	/* error if true */
       throw std::logic_error("fec_code::decode - shuffle failed");
 
-   std::vector<byte> m_dec = build_decode_matrix(k, n, enc_matrix, index);
+   std::vector<byte> m_dec = build_decode_matrix(k, n, &enc_matrix[0], index);
 
    /*
    * do the actual decoding
    */
    std::vector<byte*> new_pkt(k);
 
-   for(int row = 0; row < k; row++)
+   for(size_t row = 0; row < k; row++)
       {
       if(index[row] >= k)
          {
          new_pkt[row] = new byte[sz];
          std::memset(new_pkt[row], 0, sz * sizeof(byte));
-         for(int col = 0; col < k; col++)
+         for(size_t col = 0; col < k; col++)
             addmul(new_pkt[row], pkt[col], m_dec[row*k + col], sz);
          }
       }
@@ -650,7 +625,7 @@ void fec_code::decode(byte* pkt[], int index[], int sz) const
    /*
    * move pkts to their final destination
    */
-   for(int row = 0; row < k; row++)
+   for(size_t row = 0; row < k; row++)
       {
       if(index[row] >= k)
          {

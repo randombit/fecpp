@@ -10,7 +10,8 @@
 #ifndef FECPP_H__
 #define FECPP_H__
 
-#include <cstddef>
+#include <stddef.h>
+#include <vector>
 
 typedef unsigned char byte;
 
@@ -24,8 +25,6 @@ class fec_code
       */
       fec_code(size_t k, size_t n);
 
-      ~fec_code();
-
       size_t get_k() const { return k; }
       size_t get_n() const { return n; }
 
@@ -33,12 +32,12 @@ class fec_code
       * @param src The list of src packets, each size k
       * @param fec The output buffer
       */
-      void encode(byte* src[], byte* fec, int index, int sz) const;
+      void encode(byte* src[], byte* fec, size_t index, size_t sz) const;
 
-      void decode(byte* pkt[], int index[], int sz) const;
+      void decode(byte* pkt[], size_t index[], size_t sz) const;
    private:
       size_t k, n;
-      byte* enc_matrix;
+      std::vector<byte> enc_matrix;
    };
 
 #endif
