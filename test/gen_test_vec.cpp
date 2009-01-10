@@ -10,11 +10,11 @@ void gen_test_vector(int k, int n)
    unsigned int buf_size = k * (3 + rand() % 32);
    unsigned char* buf = new byte[buf_size];
 
-   for(int i = 0; i != buf_size; ++i)
+   for(size_t i = 0; i != buf_size; ++i)
       buf[i] = rand();
 
    printf("k=%d, n=%d, input=", k, n);
-   for(int i = 0; i != buf_size; ++i)
+   for(size_t i = 0; i != buf_size; ++i)
       printf("%02X", buf[i]);
    printf(", ");
 
@@ -38,7 +38,7 @@ void gen_test_vector(int k, int n)
       code.encode(buf_ptrs, fec, i, buf_size / k);
 
       printf("block_%d=", i);
-      for(int j = 0; j != buf_size / k; ++j)
+      for(size_t j = 0; j != buf_size / k; ++j)
          printf("%02X", fec[j]);
       if(i != n -1)
          printf(", ");

@@ -77,13 +77,14 @@ my_malloc(int sz, const char *s)
  */
 
 int
-test_decode(fec_code& code, int k, int index[], int sz, const char *s)
+test_decode(fec_code& code, size_t k, size_t index[], size_t sz,
+            const char *s)
 {
     int errors;
     int reconstruct = 0 ;
     int item, i ;
 
-    static int prev_k = 0, prev_sz = 0;
+    static size_t prev_k = 0, prev_sz = 0;
     static byte **d_original = NULL, **d_src = NULL ;
 
     if (sz < 1 || sz > 8192) {
@@ -193,7 +194,7 @@ main(int argc, char *argv[])
     int kk ;
     int i ;
 
-    int *ixs ;
+    size_t *ixs ;
 
     int lim = 255 + 1 ;
 
@@ -206,7 +207,7 @@ main(int argc, char *argv[])
     for ( kk = KK ; kk > 2 ; kk-- )
        {
        fec_code code(kk, lim);
-       ixs = (int*)my_malloc(kk * sizeof(int), "ixs" );
+       ixs = (size_t*)my_malloc(kk * sizeof(size_t), "ixs" );
 
        for (i=0; i<kk; i++) ixs[i] = kk - i ;
        sprintf(buf, "kk=%d, kk - i", kk);

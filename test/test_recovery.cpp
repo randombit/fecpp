@@ -100,7 +100,7 @@ bool check_recovery(byte k, byte n, const std::string& hex_input,
    fec_code code(k, n);
 
    byte** pkts = new byte*[k];
-   int* indexes = new int[k];
+   size_t* indexes = new size_t[k];
 
    chooser_of_k_of_n chooser(k,n);
 
@@ -149,7 +149,11 @@ int main()
    {
    std::ifstream testfile("tests.txt");
 
-   std::srand(0);
+   int seed = time(0);
+
+   //printf("Using %d as random seed\n", seed);
+
+   std::srand(seed);
 
    while(testfile.good())
       {
