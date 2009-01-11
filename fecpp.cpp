@@ -199,12 +199,10 @@ void init_fec()
 * The case c=0 is also optimized, whereas c=1 is not. These
 * calls are unfrequent in my typical apps so I did not bother.
 */
-#define addmul(dst, src, c, sz)                 \
-   if(c != 0) addmul1(dst, src, c, sz)
-
-void addmul1(byte dst[], const byte src[], byte c, int sz)
+void addmul(byte dst[], const byte src[], byte c, int sz)
    {
-#define GF_ADDMULC(dst, x) dst ^= __gf_mulc_[x]
+   if(c == 0)
+      return;
 
    const byte* mul_base = gf_mul_table[c];
    byte *lim = &dst[sz - 16 + 1];
@@ -232,6 +230,25 @@ void addmul1(byte dst[], const byte src[], byte c, int sz)
    lim += 16 - 1;
    for(; dst < lim; dst++, src++)            /* final components */
       *dst ^= mul_base[*src];
+   }
+
+void addmul_k(byte dst[], byte* srcs[], const byte cs[],
+              size_t size, size_t k)
+   {
+   for(size_t i = 0; i != k; ++i)
+      {
+      byte c = cs[i];
+
+      if(c == 0)
+         continue;
+
+      const byte* mul_base = gf_mul_table[c];
+
+      const byte* src = srcs[i];
+
+      for(size_t k = 0; k != size; ++k)
+         dst[k] ^= mul_base[src[k]];
+      }
    }
 
 /*
@@ -529,11 +546,11 @@ fec_code::fec_code(size_t k_arg, size_t n_arg) :
    {
    init_fec();
 
-   if(k > 256 || n > 256 || k > n)
-      {
-      printf("%d > %d\n", k, n);
+   if(k > 256 || n > 256)
+      throw std::invalid_argument("fec_code: k and n must be < 256");
+
+   if(k > n)
       throw std::invalid_argument("fec_code: k must be <= n");
-      }
 
    std::vector<byte> tmp_m(n * k);
 
@@ -583,8 +600,9 @@ void fec_code::encode(byte *src[], byte fec[], size_t index, size_t sz) const
       {
       const byte* p = &(enc_matrix[index*k]);
       std::memset(fec, 0, sz*sizeof(byte));
-      for(size_t i = 0; i < k; i++)
-         addmul(fec, src[i], p[i], sz);
+      addmul_k(fec, src, p, sz, k);
+      //for(size_t i = 0; i < k; i++)
+      //addmul(fec, src[i], p[i], sz);
       }
    }
 
@@ -617,8 +635,9 @@ void fec_code::decode(byte* pkt[], size_t index[], size_t sz) const
          {
          new_pkt[row] = new byte[sz];
          std::memset(new_pkt[row], 0, sz * sizeof(byte));
-         for(size_t col = 0; col < k; col++)
-            addmul(new_pkt[row], pkt[col], m_dec[row*k + col], sz);
+         addmul_k(new_pkt[row], pkt, &m_dec[row*k], sz, k);
+         //for(size_t col = 0; col < k; col++)
+         //addmul(new_pkt[row], pkt[col], m_dec[row*k + col], sz);
          }
       }
 
