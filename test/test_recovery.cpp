@@ -129,7 +129,7 @@ bool check_recovery(byte k, byte n, const std::string& hex_input,
          {
          //printf("%02X", pkts[i][j]);
 
-         if(pkts[i][j] != input[stride*i+j])
+         if(pkts[i][j] != (byte)input[stride*i+j])
             printf("Bad: pkts[%d][%d] = %02X != input[%d*%d+%d] = %02X\n",
                    i, j, pkts[i][j], stride, i, j, (byte)input[stride*i+j]);
          }
