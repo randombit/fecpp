@@ -238,16 +238,14 @@ void addmul_k(byte dst[], byte* srcs[], const byte cs[],
    for(size_t i = 0; i != k; ++i)
       {
       byte c = cs[i];
-
       if(c == 0)
          continue;
 
-      const byte* mul_base = gf_mul_table[c];
-
+      const byte* mul_c = gf_mul_table[c];
       const byte* src = srcs[i];
 
-      for(size_t k = 0; k != size; ++k)
-         dst[k] ^= mul_base[src[k]];
+      for(size_t j = 0; j != size; ++j)
+         dst[j] ^= mul_c[src[j]];
       }
    }
 
@@ -279,7 +277,6 @@ matmul(const byte a[], const byte b[], byte *c, int n, int k, int m)
 */
 void invert_mat(byte *src, int k)
    {
-   byte c, *p;
    int irow, icol;
 
    std::vector<int> indxc(k);
@@ -352,7 +349,7 @@ void invert_mat(byte *src, int k)
       indxr[col] = irow;
       indxc[col] = icol;
       pivot_row = &src[icol*k];
-      c = pivot_row[icol];
+      byte c = pivot_row[icol];
 
       if(c == 0)
          throw std::invalid_argument("singlar matrix");
@@ -379,8 +376,9 @@ void invert_mat(byte *src, int k)
       id_row[icol] = 1;
       if(memcmp(pivot_row, &id_row[0], k*sizeof(byte)) != 0)
          {
-         int i;
-         for(p = src, i = 0; i < k; i++, p += k)
+         byte* p = src;
+
+         for(int i = 0; i < k; ++i)
             {
             if(i != icol)
                {
@@ -388,6 +386,7 @@ void invert_mat(byte *src, int k)
                p[icol] = 0;
                addmul(p, pivot_row, c, k);
                }
+            p += k;
 	    }
          }
       id_row[icol] = 0;
