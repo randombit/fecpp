@@ -7,7 +7,7 @@ void gen_test_vector(int k, int n)
    {
    fec_code code(k, n);
 
-   unsigned int buf_size = k * (3 + rand() % 32);
+   unsigned int buf_size = k * (64 + rand() % 512);
    unsigned char* buf = new byte[buf_size];
 
    for(size_t i = 0; i != buf_size; ++i)
