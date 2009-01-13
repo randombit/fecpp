@@ -510,12 +510,17 @@ fec_code::fec_code(size_t k_arg, size_t n_arg) :
    if(k > n)
       throw std::invalid_argument("fec_code: k must be <= n");
 
-   std::vector<byte> tmp_m(n * k);
+   /*
+   * the upper matrix is I so do not bother with a slow multiply
+   */
+   for(size_t i = 0; i != k; ++i)
+      enc_matrix[i*(k+1)] = 1;
 
    /*
    * Fill the matrix with powers of field elements, starting from 0.
    * The first row is special, cannot be computed with exp. table.
    */
+   std::vector<byte> tmp_m(n * k);
    tmp_m[0] = 1;
    // rest of row 0 is 0s
 
@@ -532,25 +537,18 @@ fec_code::fec_code(size_t k_arg, size_t n_arg) :
    /*
    * computes C = AB where A is n*k, B is k*m, C is n*m
    */
-   for(size_t row = 0; row < n-k; row++)
+   for(size_t row = k*k; row != n*k; row += k)
       {
       for(size_t col = 0; col < k; col++)
          {
-         const byte *pa = &tmp_m[k*k + row * k];
+         const byte *pa = &tmp_m[row];
          const byte *pb = &tmp_m[col];
          byte acc = 0;
          for(size_t i = 0; i < k; i++, pa++, pb += k)
             acc ^= gf_mul(*pa, *pb);
-         enc_matrix[k*k + row * k + col ] = acc;
+         enc_matrix[row + col] = acc;
          }
       }
-
-   /*
-   * the upper matrix is I so do not bother with a slow multiply
-   */
-   std::memset(&this->enc_matrix[0], 0, k*k);
-   for(byte* p = &this->enc_matrix[0], col = 0; col < k; col++, p += k+1)
-      *p = 1;
    }
 
 /*
