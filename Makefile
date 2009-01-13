@@ -3,7 +3,7 @@ CC=g++
 WARNINGS= -Wall -Wextra
 CFLAGS=-O2 -g $(WARNINGS)
 
-all: libfecpp.a test_fec test_recovery gen_test_vec
+all: libfecpp.a test_recovery gen_test_vec
 
 libfecpp.a: fecpp.o
 	ar crs libfecpp.a fecpp.o

@@ -10,6 +10,7 @@
 #ifndef FECPP_H__
 #define FECPP_H__
 
+#include <tr1/functional>
 #include <stddef.h>
 #include <vector>
 
@@ -28,13 +29,19 @@ class fec_code
       size_t get_k() const { return k; }
       size_t get_n() const { return n; }
 
-      /**
-      * @param src The list of src packets, each size k
-      * @param fec The output buffer
-      */
-      void encode(byte* src[], byte* fec, size_t index, size_t sz) const;
+      void encode(
+         const byte input[], size_t size,
+         std::tr1::function<void (size_t, size_t, const byte[], size_t)> out)
+         const;
 
+#if 0
+      void decode(
+         const std::map<size_t, const byte*>&
+         std::tr1::function<void (size_t, size_t, const byte[], size_t)> out)
+         const;
+#else
       void decode(byte* pkt[], size_t index[], size_t sz) const;
+#endif
    private:
       size_t k, n;
       std::vector<byte> enc_matrix;

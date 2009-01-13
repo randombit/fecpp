@@ -3,51 +3,34 @@
 #include <stdlib.h>
 #include <string.h>
 
+void print_block(size_t block_no, size_t n,
+                 const byte share[], size_t share_len)
+   {
+   printf("block_%d=", block_no);
+   for(size_t j = 0; j != share_len; ++j)
+      printf("%02X", share[j]);
+   if(block_no != n - 1)
+      printf(", ");
+   }
+
 void gen_test_vector(int k, int n)
    {
    fec_code code(k, n);
 
-   unsigned int buf_size = k * (64 + rand() % 512);
-   unsigned char* buf = new byte[buf_size];
+   std::vector<byte> buf(k * (64 + rand() % 512));
+   //std::vector<byte> buf(k * (3 + rand() % 5));
 
-   for(size_t i = 0; i != buf_size; ++i)
+   for(size_t i = 0; i != buf.size(); ++i)
       buf[i] = rand();
 
    printf("k=%d, n=%d, input=", k, n);
-   for(size_t i = 0; i != buf_size; ++i)
+   for(size_t i = 0; i != buf.size(); ++i)
       printf("%02X", buf[i]);
    printf(", ");
 
-   unsigned char* buf_ptrs[k];
-
-   for(int i = 0; i != k; ++i)
-      {
-      buf_ptrs[i] = buf + i * (buf_size / k);
-      /*
-      printf("BUF %d: ", i);
-      for(int l = 0; l != buf_size / k; ++l)
-         printf("%02X", buf_ptrs[i][l]);
-      printf("\n");
-      */
-      }
-
-   unsigned char* fec = new byte[buf_size / k];
-
-   for(int i = 0; i != n; ++i)
-      {
-      code.encode(buf_ptrs, fec, i, buf_size / k);
-
-      printf("block_%d=", i);
-      for(size_t j = 0; j != buf_size / k; ++j)
-         printf("%02X", fec[j]);
-      if(i != n -1)
-         printf(", ");
-      }
+   code.encode(&buf[0], buf.size(), print_block);
 
    printf("\n");
-
-   delete[] fec;
-   delete[] buf;
    }
 
 int main()

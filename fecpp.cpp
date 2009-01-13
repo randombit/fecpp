@@ -374,7 +374,7 @@ void invert_mat(byte *src, int k)
       * we can optimize the addmul).
       */
       id_row[icol] = 1;
-      if(memcmp(pivot_row, &id_row[0], k*sizeof(byte)) != 0)
+      if(memcmp(pivot_row, &id_row[0], k) != 0)
          {
          byte* p = src;
 
@@ -515,11 +515,11 @@ build_decode_matrix(size_t k, size_t n,
       {
       if(index[i] < k)
          { /* this is simply an optimization, not very useful indeed */
-         std::memset(p, 0, k*sizeof(byte));
+         std::memset(p, 0, k);
          p[i] = 1;
          }
       else if(index[i] < n)
-         std::memcpy(p, &(enc_matrix[index[i]*k]), k*sizeof(byte));
+         std::memcpy(p, &(enc_matrix[index[i]*k]), k);
       else
          throw std::logic_error("bad index in build_decode_matrix");
       }
@@ -558,13 +558,10 @@ fec_code::fec_code(size_t k_arg, size_t n_arg) :
    * The first row is special, cannot be computed with exp. table.
    */
    tmp_m[0] = 1;
-   for(size_t col = 1; col < k; col++)
-      tmp_m[col] = 0;
-   for(byte* p = &tmp_m[k], row = 0; row < n-1; row++, p += k)
-      {
-      for(size_t col = 0; col < k; col ++)
-         p[col] = GF_EXP[(row*col) % 255];
-      }
+   // rest of row 0 is 0s
+
+   for(size_t i = k; i != tmp_m.size(); ++i)
+      tmp_m[i] = GF_EXP[((i / k) * (i % k)) % 255];
 
    /*
    * quick code to build systematic matrix: invert the top
@@ -577,31 +574,38 @@ fec_code::fec_code(size_t k_arg, size_t n_arg) :
    /*
    * the upper matrix is I so do not bother with a slow multiply
    */
-   std::memset(&this->enc_matrix[0], 0, k*k*sizeof(byte));
+   std::memset(&this->enc_matrix[0], 0, k*k);
    for(byte* p = &this->enc_matrix[0], col = 0; col < k; col++, p += k+1)
       *p = 1;
    }
 
 /*
-* fec_encode accepts as input pointers to n data packets of size sz,
+* fec_encode accepts as input pointers to k data packets of size sz,
 * and produces as output a packet pointed to by fec, computed
 * with index "index".
 */
-void fec_code::encode(byte *src[], byte fec[], size_t index, size_t sz) const
+void fec_code::encode(
+   const byte input[], size_t size,
+   std::tr1::function<void (size_t, size_t, const byte[], size_t)> output)
+   const
    {
-   if(index >= n)
-      throw std::invalid_argument("Invalid packet index to encode " +
-                                  to_string(index));
+   if(size % k != 0)
+      throw std::invalid_argument("encode: input must be multiple of k bytes");
 
-   if(index < k)
-      std::memcpy(fec, src[index], sz*sizeof(byte));
-   else
+   size_t block_size = size / k;
+
+   for(size_t i = 0; i != k; ++i)
+      output(i, n, input + i*block_size, block_size);
+
+   for(size_t i = k; i != n; ++i)
       {
-      const byte* p = &(enc_matrix[index*k]);
-      std::memset(fec, 0, sz*sizeof(byte));
-      addmul_k(fec, src, p, sz, k);
-      //for(size_t i = 0; i < k; i++)
-      //addmul(fec, src[i], p[i], sz);
+      std::vector<byte> fec_buf(block_size);
+
+      for(size_t j = 0; j != k; ++j)
+         addmul(&fec_buf[0], input + j*block_size,
+                enc_matrix[i*k+j], block_size);
+
+      output(i, n, &fec_buf[0], fec_buf.size());
       }
    }
 
@@ -647,7 +651,7 @@ void fec_code::decode(byte* pkt[], size_t index[], size_t sz) const
       {
       if(index[row] >= k)
          {
-         std::memcpy(pkt[row], new_pkt[row], sz*sizeof(byte));
+         std::memcpy(pkt[row], new_pkt[row], sz);
          delete[] new_pkt[row];
          }
       }
