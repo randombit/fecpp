@@ -376,12 +376,10 @@ void invert_mat(byte *src, int k)
 * p = coefficients of the matrix (p_i)
 * q = values of the polynomial (known)
 */
-
-int
-invert_vdm(byte *src, int k)
+void invert_vdm(byte *src, int k)
    {
    if(k == 1) 	/* degenerate case, matrix must be p^0 = 1 */
-      return 0;
+      return;
 
    /*
    * c holds the coefficient of P(x) = Prod (x - p_i), i=0..k-1
@@ -424,8 +422,6 @@ invert_vdm(byte *src, int k)
       for(int col = 0; col < k; col++)
          src[col*k + row] = gf_mul(GF_INVERSE[t], b[col]);
       }
-
-   return 0;
    }
 
 /*
