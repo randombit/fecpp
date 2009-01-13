@@ -292,6 +292,7 @@ void invert_mat(byte *src, int k)
          throw std::invalid_argument("pivot not found in invert_mat");
 
       found_piv:
+
       ++(ipiv[icol]);
 
       /*
@@ -355,7 +356,7 @@ void invert_mat(byte *src, int k)
       {
       if(indxr[col] < 0 || indxr[col] >= k)
          fprintf(stderr, "AARGH, indxr[col] %d\n", indxr[col]);
-      else if(indxc[col] <0 || indxc[col] >= k)
+      else if(indxc[col] < 0 || indxc[col] >= k)
          fprintf(stderr, "AARGH, indxc[col] %d\n", indxc[col]);
       else if(indxr[col] != indxc[col])
          {
@@ -387,7 +388,7 @@ void invert_vdm(byte *src, int k)
    */
    std::vector<byte> c(k), b(k), p(k);
 
-   for(int j = 1, i = 0; i < k; i++, j+=k)
+   for(int j = 1, i = 0; i < k; i++, j += k)
       {
       c[i] = 0;
       p[i] = src[j];    /* p[i] */
@@ -427,8 +428,7 @@ void invert_vdm(byte *src, int k)
 /*
 * shuffle move src packets in their position
 */
-int
-shuffle(byte *pkt[], size_t index[], size_t k)
+void shuffle(byte *pkt[], size_t index[], size_t k)
    {
    for(size_t i = 0; i < k;)
       {
@@ -442,14 +442,12 @@ shuffle(byte *pkt[], size_t index[], size_t k)
          size_t c = index[i];
 
          if(index[c] == c)
-            {
-            return 1;
-	    }
+            throw std::logic_error("decode shuffle failed");
+
          std::swap(index[i], index[c]);
          std::swap(pkt[i], pkt[c]);
          }
       }
-   return 0;
    }
 
 /*
@@ -459,7 +457,7 @@ shuffle(byte *pkt[], size_t index[], size_t k)
 */
 std::vector<byte>
 build_decode_matrix(size_t k, size_t n,
-                    const byte* enc_matrix, size_t index[])
+                    const byte* enc_matrix, const size_t index[])
    {
    std::vector<byte> matrix(k * k);
 
@@ -468,15 +466,16 @@ build_decode_matrix(size_t k, size_t n,
 
    for(i = 0, p = &matrix[0]; i < k; i++, p += k)
       {
-      if(index[i] < k)
+      if(index[i] >= n)
+         throw std::logic_error("bad index in build_decode_matrix");
+
+      if(0 && index[i] < k)
          { /* this is simply an optimization, not very useful indeed */
          std::memset(p, 0, k);
          p[i] = 1;
          }
-      else if(index[i] < n)
-         std::memcpy(p, &(enc_matrix[index[i]*k]), k);
       else
-         throw std::logic_error("bad index in build_decode_matrix");
+         std::memcpy(p, &(enc_matrix[index[i]*k]), k);
       }
 
    invert_mat(&matrix[0], k);
@@ -588,10 +587,92 @@ void fec_code::encode(
 *	index: pointer to packet indexes (modified)
 *	sz:    size of each packet
 */
+template<typename K, typename V>
+inline V search_map(const std::map<K, V>& mapping,
+                    const K& key,
+                    const V& null_result = V())
+   {
+   typename std::map<K, V>::const_iterator i = mapping.find(key);
+   if(i == mapping.end())
+      return null_result;
+   return i->second;
+   }
+
+std::vector<size_t>
+choose_indexes(const std::map<size_t, const byte*>& shares, size_t k)
+   {
+   if(shares.size() < k)
+      throw std::invalid_argument("not enough shares");
+
+   std::map<size_t, const byte*>::const_iterator b = shares.begin();
+   std::map<size_t, const byte*>::const_reverse_iterator e = shares.rbegin();
+
+   std::vector<size_t> indexes;
+
+   for(size_t i = 0; i != k; ++i)
+      {
+      if(b->first == i)
+         {
+         indexes.push_back(b->first);
+         ++b;
+         }
+
+      else
+         {
+         indexes.push_back(e->first);
+         ++e;
+         }
+      }
+
+   return indexes;
+   }
+
+void fec_code::decode(
+   const std::map<size_t, const byte*>& shares, size_t share_size,
+   std::tr1::function<void (size_t, size_t, const byte[], size_t)> out) const
+   {
+   if(shares.size() < k)
+      throw std::logic_error("Could not decode, less than k surviving shares");
+
+   std::vector<size_t> indexes = choose_indexes(shares, k);
+
+   std::vector<byte> m_dec = build_decode_matrix(k, n, &enc_matrix[0], &indexes[0]);
+
+   /*
+   Todo:
+    If shares.size() < k:
+          signal decoding error for missing shares < k
+          emit existing shares < k
+    Assert share_size % k == 0
+    Check that all share #s < n
+   */
+
+   for(size_t i = 0; i != indexes.size(); ++i)
+      {
+      size_t share_id = indexes[i];
+
+      /*
+      This is a systematic code (encoding matrix includes k*k identity
+      matrix), so shares less than k are copies of the input data,
+      can output directly
+      */
+      if(share_id < k)
+         out(share_id, k, search_map(shares, share_id), share_size);
+      else
+         {
+         std::vector<byte> buf(share_size);
+         for(size_t col = 0; col < k; col++)
+            {
+            addmul(&buf[0], search_map(shares, indexes[col]), m_dec[i*k + col], share_size);
+            }
+         out(i, k, &buf[0], share_size);
+         }
+      }
+   }
+
 void fec_code::decode(byte* pkt[], size_t index[], size_t sz) const
    {
-   if(shuffle(pkt, index, k))	/* error if true */
-      throw std::logic_error("fec_code::decode - shuffle failed");
+   shuffle(pkt, index, k);
 
    std::vector<byte> m_dec = build_decode_matrix(k, n, &enc_matrix[0], index);
 
@@ -605,10 +686,9 @@ void fec_code::decode(byte* pkt[], size_t index[], size_t sz) const
       if(index[row] >= k)
          {
          new_pkt[row] = new byte[sz];
-         std::memset(new_pkt[row], 0, sz * sizeof(byte));
-         addmul_k(new_pkt[row], pkt, &m_dec[row*k], sz, k);
-         //for(size_t col = 0; col < k; col++)
-         //addmul(new_pkt[row], pkt[col], m_dec[row*k + col], sz);
+         std::memset(new_pkt[row], 0, sz);
+         for(size_t col = 0; col < k; col++)
+            addmul(new_pkt[row], pkt[col], m_dec[row*k + col], sz);
          }
       }
 

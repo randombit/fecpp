@@ -88,6 +88,33 @@ int chooser_of_k_of_n::choose()
       }
    }
 
+class output_checker
+   {
+   public:
+      output_checker(const std::string& in_arg) : in(in_arg) {}
+
+      void operator()(size_t block, size_t max_blocks,
+                      const byte buf[], size_t size)
+         {
+         for(size_t i = 0; i != size; ++i)
+            {
+            byte inb = in.at(block*size+i);
+            if(inb != buf[i])
+               {
+               printf("Bad: block=%d/%d i=%d in=%02X buf=%02X\n",
+                      block, max_blocks, i, inb, buf[i]);
+               }
+            }
+
+         shares_seen.insert(block);
+         }
+
+      size_t shares_checked() const { return shares_seen.size(); }
+   private:
+      std::set<size_t> shares_seen;
+      std::string in;
+   };
+
 bool check_recovery(byte k, byte n, const std::string& hex_input,
                     const std::vector<std::string>& hex_packets)
    {
@@ -97,8 +124,26 @@ bool check_recovery(byte k, byte n, const std::string& hex_input,
    for(size_t i = 0; i != hex_packets.size(); ++i)
       packets.push_back(decode_hex(hex_packets[i]));
 
+   printf("%d, %d\n", k, n);
    fec_code code(k, n);
 
+#if 1
+   std::map<size_t, const byte*> packets_map;
+   for(size_t i = 0; i != packets.size(); ++i)
+      packets_map[i] = (const byte*)packets[i].c_str();
+
+   output_checker check_output(input);
+
+   while(packets_map.size() > k)
+      packets_map.erase(packets_map.begin());
+
+   // assumes all same size
+   code.decode(packets_map, packets[0].size(), std::tr1::ref(check_output));
+
+   if(check_output.shares_checked() != k)
+      printf("Only %d of %d shares were output\n",
+             check_output.shares_checked(), k);
+#else
    byte** pkts = new byte*[k];
    size_t* indexes = new size_t[k];
 
@@ -141,8 +186,9 @@ bool check_recovery(byte k, byte n, const std::string& hex_input,
 
    delete[] pkts;
    delete[] indexes;
+#endif
 
-   return false;
+   return true;
    }
 
 int main()
@@ -199,6 +245,7 @@ int main()
       if((int)blocks.size() != n)
          throw std::logic_error("Bad block count");
 
-      check_recovery(k, n, input, blocks);
+      if(!check_recovery(k, n, input, blocks))
+         printf("Bad recovery %d %d\n", k, n);
       }
    }

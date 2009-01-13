@@ -10,9 +10,10 @@
 #ifndef FECPP_H__
 #define FECPP_H__
 
+#include <map>
+#include <vector>
 #include <tr1/functional>
 #include <stddef.h>
-#include <vector>
 
 typedef unsigned char byte;
 
@@ -34,14 +35,13 @@ class fec_code
          std::tr1::function<void (size_t, size_t, const byte[], size_t)> out)
          const;
 
-#if 0
       void decode(
-         const std::map<size_t, const byte*>&
+         const std::map<size_t, const byte*>& shares, size_t share_size,
          std::tr1::function<void (size_t, size_t, const byte[], size_t)> out)
          const;
-#else
+
       void decode(byte* pkt[], size_t index[], size_t sz) const;
-#endif
+
    private:
       size_t k, n;
       std::vector<byte> enc_matrix;
