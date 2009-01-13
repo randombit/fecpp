@@ -132,27 +132,6 @@ const byte GF_INVERSE[256] = {
 0xFF, 0x7E, 0xFD };
 
 /*
- * modnn(x) computes x % GF_SIZE, where GF_SIZE is 2**GF_BITS - 1,
- * without a slow divide.
- */
-inline byte modnn(int x)
-   {
-   while(x >= 0xFF)
-      {
-      x -= 0xFF;
-      x = (x >> 8) + (x & 0xFF);
-      }
-   return x;
-   }
-
-std::string to_string(size_t i)
-   {
-   std::ostringstream o;
-   o << i;
-   return o.str();
-   }
-
-/*
 * gf_mul(x,y) multiplies two numbers. If GF_BITS<=8, it is much
 * faster to use a multiplication table.
 *
@@ -246,26 +225,6 @@ void addmul_k(byte dst[], byte* srcs[], const byte cs[],
 
       for(size_t j = 0; j != size; ++j)
          dst[j] ^= mul_c[src[j]];
-      }
-   }
-
-/*
-* computes C = AB where A is n*k, B is k*m, C is n*m
-*/
-void
-matmul(const byte a[], const byte b[], byte *c, int n, int k, int m)
-   {
-   for(int row = 0; row < n; row++)
-      {
-      for(int col = 0; col < m; col++)
-         {
-         const byte *pa = &a[ row * k ];
-         const byte *pb = &b[ col ];
-         byte acc = 0;
-         for(int i = 0; i < k; i++, pa++, pb += m)
-            acc ^= gf_mul(*pa, *pb);
-         c[ row * m + col ] = acc;
-         }
       }
    }
 
@@ -569,7 +528,22 @@ fec_code::fec_code(size_t k_arg, size_t n_arg) :
    * by the inverse, and construct the identity matrix at the top.
    */
    invert_vdm(&tmp_m[0], k); /* much faster than invert_mat */
-   matmul(&tmp_m[k*k], &tmp_m[0], &this->enc_matrix[k*k], n - k, k, k);
+
+   /*
+   * computes C = AB where A is n*k, B is k*m, C is n*m
+   */
+   for(size_t row = 0; row < n-k; row++)
+      {
+      for(size_t col = 0; col < k; col++)
+         {
+         const byte *pa = &tmp_m[k*k + row * k];
+         const byte *pb = &tmp_m[col];
+         byte acc = 0;
+         for(size_t i = 0; i < k; i++, pa++, pb += k)
+            acc ^= gf_mul(*pa, *pb);
+         enc_matrix[k*k + row * k + col ] = acc;
+         }
+      }
 
    /*
    * the upper matrix is I so do not bother with a slow multiply
