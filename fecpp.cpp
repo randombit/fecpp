@@ -666,38 +666,3 @@ void fec_code::decode(
          }
       }
    }
-
-void fec_code::decode(byte* pkt[], size_t index[], size_t sz) const
-   {
-   shuffle(pkt, index, k);
-
-   std::vector<byte> m_dec = build_decode_matrix(k, n, &enc_matrix[0], index);
-
-   /*
-   * do the actual decoding
-   */
-   std::vector<byte*> new_pkt(k);
-
-   for(size_t row = 0; row < k; row++)
-      {
-      if(index[row] >= k)
-         {
-         new_pkt[row] = new byte[sz];
-         std::memset(new_pkt[row], 0, sz);
-         for(size_t col = 0; col < k; col++)
-            addmul(new_pkt[row], pkt[col], m_dec[row*k + col], sz);
-         }
-      }
-
-   /*
-   * move pkts to their final destination
-   */
-   for(size_t row = 0; row < k; row++)
-      {
-      if(index[row] >= k)
-         {
-         std::memcpy(pkt[row], new_pkt[row], sz);
-         delete[] new_pkt[row];
-         }
-      }
-   }

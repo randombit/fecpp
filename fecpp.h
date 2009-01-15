@@ -40,8 +40,6 @@ class fec_code
          std::tr1::function<void (size_t, size_t, const byte[], size_t)> out)
          const;
 
-      void decode(byte* pkt[], size_t index[], size_t sz) const;
-
    private:
       size_t k, n;
       std::vector<byte> enc_matrix;
