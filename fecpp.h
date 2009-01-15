@@ -13,7 +13,8 @@
 #include <map>
 #include <vector>
 #include <tr1/functional>
-#include <stddef.h>
+
+using std::size_t;
 
 typedef unsigned char byte;
 
@@ -30,11 +31,21 @@ class fec_code
       size_t get_k() const { return k; }
       size_t get_n() const { return n; }
 
+      /**
+      * @param input the data to FEC
+      * @param size the length in bytes of input
+      * @param out the output callback
+      */
       void encode(
          const byte input[], size_t size,
          std::tr1::function<void (size_t, size_t, const byte[], size_t)> out)
          const;
 
+      /**
+      * @param shares map of share id to share contents
+      * @param share_size size in bytes of each share
+      * @param out the output callback
+      */
       void decode(
          const std::map<size_t, const byte*>& shares, size_t share_size,
          std::tr1::function<void (size_t, size_t, const byte[], size_t)> out)
