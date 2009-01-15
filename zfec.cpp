@@ -61,7 +61,14 @@ class zfec_file_writer
          for(size_t i = 0; i != n; ++i)
             {
             std::ostringstream outname;
-            outname << prefix << '.' << i << '_' << n << ".fec";
+            outname << prefix << '.';
+
+            if(n > 10 && i < 10)
+               outname << '0';
+            if(n > 100 && i < 100)
+               outname << '0';
+
+            outname << i << '_' << n << ".fec";
 
             std::ofstream* out = new std::ofstream(outname.str().c_str());
             write_zfec_header(*out, n, k, pad_bytes, i);
