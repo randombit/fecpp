@@ -96,6 +96,9 @@ class output_checker
       void operator()(size_t block, size_t max_blocks,
                       const byte buf[], size_t size)
          {
+         if(out.size() == 0)
+            out.resize(max_blocks * size);
+
          for(size_t i = 0; i != size; ++i)
             {
             byte inb = in.at(block*size+i);
@@ -104,15 +107,18 @@ class output_checker
                printf("Bad: block=%d/%d i=%d in=%02X buf=%02X\n",
                       block, max_blocks, i, inb, buf[i]);
                }
+            out[block*size+i] = buf[i];
             }
-
-         shares_seen.insert(block);
          }
 
-      size_t shares_checked() const { return shares_seen.size(); }
+      void confirm()
+         {
+         if(in != out)
+            printf("Mismatch in final check! %d %d\n", in.size(), out.size());
+         }
    private:
-      std::set<size_t> shares_seen;
       std::string in;
+      std::string out;
    };
 
 bool check_recovery(byte k, byte n, const std::string& hex_input,
@@ -127,66 +133,21 @@ bool check_recovery(byte k, byte n, const std::string& hex_input,
    printf("%d, %d\n", k, n);
    fec_code code(k, n);
 
-#if 1
    std::map<size_t, const byte*> packets_map;
    for(size_t i = 0; i != packets.size(); ++i)
       packets_map[i] = (const byte*)packets[i].c_str();
 
    output_checker check_output(input);
 
+   chooser_of_k_of_n chooser(k,n);
+
    while(packets_map.size() > k)
-      packets_map.erase(packets_map.begin());
+      packets_map.erase(chooser.choose());
 
    // assumes all same size
    code.decode(packets_map, packets[0].size(), std::tr1::ref(check_output));
 
-   if(check_output.shares_checked() != k)
-      printf("Only %d of %d shares were output\n",
-             check_output.shares_checked(), k);
-#else
-   byte** pkts = new byte*[k];
-   size_t* indexes = new size_t[k];
-
-   chooser_of_k_of_n chooser(k,n);
-
-   for(int i = 0; i != k; ++i)
-      {
-      pkts[i] = new byte[input.length() / k];
-
-      int ind = chooser.choose();
-
-      indexes[i] = ind;
-
-      const void* src_packet = packets[ind].c_str();
-      int src_len = packets[ind].length();
-
-      memcpy(pkts[i], src_packet, src_len);
-      }
-
-   code.decode(pkts, indexes, input.length() / k);
-
-   //printf("%s\n", hex_input.c_str());
-   for(int i = 0; i != k; ++i)
-      {
-      int stride = input.length() / k;
-
-      for(size_t j = 0; j != input.length() / k; ++j)
-         {
-         //printf("%02X", pkts[i][j]);
-
-         if(pkts[i][j] != (byte)input[stride*i+j])
-            printf("Bad: pkts[%d][%d] = %02X != input[%d*%d+%d] = %02X\n",
-                   i, j, pkts[i][j], stride, i, j, (byte)input[stride*i+j]);
-         }
-      }
-   //printf("\n");
-
-   for(int i = 0; i != k; ++i)
-      delete[] pkts[i];
-
-   delete[] pkts;
-   delete[] indexes;
-#endif
+   check_output.confirm();
 
    return true;
    }
