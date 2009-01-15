@@ -207,7 +207,7 @@ void addmul(byte dst[], const byte src[], byte c, int sz)
       }
 
    lim += 16 - 1;
-   for(; dst < lim; dst++, src++)            /* final components */
+   for(; dst < lim; dst++, src++)
       *dst ^= mul_base[*src];
    }
 
@@ -229,9 +229,8 @@ void addmul_k(byte dst[], byte* srcs[], const byte cs[],
    }
 
 /*
-* invert_mat() takes a matrix and produces its inverse
-* k is the size of the matrix.
-* (Gauss-Jordan, adapted from Numerical Recipes in C)
+* invert_mat() takes a matrix and produces its inverse k is the size
+* of the matrix.  (Gauss-Jordan, adapted from Numerical Recipes in C)
 * Return non-zero if singular.
 */
 void invert_mat(byte *src, int k)
@@ -347,7 +346,7 @@ void invert_mat(byte *src, int k)
                addmul(p, pivot_row, c, k);
                }
             p += k;
-	    }
+            }
          }
       id_row[icol] = 0;
       } /* done all columns */
@@ -368,9 +367,9 @@ void invert_mat(byte *src, int k)
 
 /*
 * fast code for inverting a vandermonde matrix.
-* XXX NOTE: It assumes that the matrix
-* is not singular and _IS_ a vandermonde matrix. Only uses
-* the second column of the matrix, containing the p_i's.
+* XXX NOTE: It assumes that the matrix is not singular and _IS_ a
+* vandermonde matrix. Only uses the second column of the matrix,
+* containing the p_i's.
 *
 * Algorithm borrowed from "Numerical recipes in C" -- sec.2.8, but
 * largely revised for my purposes.
@@ -379,7 +378,7 @@ void invert_mat(byte *src, int k)
 */
 void invert_vdm(byte *src, int k)
    {
-   if(k == 1) 	/* degenerate case, matrix must be p^0 = 1 */
+   if(k == 1) /* degenerate case, matrix must be p^0 = 1 */
       return;
 
    /*
@@ -400,7 +399,7 @@ void invert_vdm(byte *src, int k)
    * x - p_i generating P_i = x P_{i-1} - p_i P_{i-1}
    * After k steps we are done.
    */
-   c[k-1] = p[0];	/* really -p(0), but x = -x in GF(2^m) */
+   c[k-1] = p[0]; /* really -p(0), but x = -x in GF(2^m) */
    for(int i = 1; i < k; i++)
       {
       byte p_i = p[i]; /* see above comment */
@@ -461,21 +460,19 @@ build_decode_matrix(size_t k, size_t n,
    {
    std::vector<byte> matrix(k * k);
 
-   size_t i;
-   byte *p;
+   byte* p = &matrix[0];
 
-   for(i = 0, p = &matrix[0]; i < k; i++, p += k)
+   for(size_t i = 0; i != k; ++i)
       {
       if(index[i] >= n)
          throw std::logic_error("bad index in build_decode_matrix");
 
-      if(0 && index[i] < k)
-         { /* this is simply an optimization, not very useful indeed */
-         std::memset(p, 0, k);
+      if(1 && index[i] < k)
          p[i] = 1;
-         }
       else
          std::memcpy(p, &(enc_matrix[index[i]*k]), k);
+
+      p += k;
       }
 
    invert_mat(&matrix[0], k);
@@ -536,8 +533,8 @@ fec_code::fec_code(size_t k_arg, size_t n_arg) :
       {
       for(size_t col = 0; col < k; col++)
          {
-         const byte *pa = &tmp_m[row];
-         const byte *pb = &tmp_m[col];
+         const byte* pa = &tmp_m[row];
+         const byte* pb = &tmp_m[col];
          byte acc = 0;
          for(size_t i = 0; i < k; i++, pa++, pb += k)
             acc ^= gf_mul(*pa, *pb);
@@ -581,11 +578,11 @@ void fec_code::encode(
 * packets, and produces the correct vector as output.
 *
 * Input:
-*	code: pointer to code descriptor
-*	pkt:  pointers to received packets. They are modified
-*	      to store the output packets (in place)
-*	index: pointer to packet indexes (modified)
-*	sz:    size of each packet
+*   code: pointer to code descriptor
+*   pkt:  pointers to received packets. They are modified
+*         to store the output packets (in place)
+*   index: pointer to packet indexes (modified)
+*   sz:    size of each packet
 */
 template<typename K, typename V>
 inline V search_map(const std::map<K, V>& mapping,
@@ -616,7 +613,6 @@ choose_indexes(const std::map<size_t, const byte*>& shares, size_t k)
          indexes.push_back(b->first);
          ++b;
          }
-
       else
          {
          indexes.push_back(e->first);
@@ -629,7 +625,7 @@ choose_indexes(const std::map<size_t, const byte*>& shares, size_t k)
 
 void fec_code::decode(
    const std::map<size_t, const byte*>& shares, size_t share_size,
-   std::tr1::function<void (size_t, size_t, const byte[], size_t)> out) const
+   std::tr1::function<void (size_t, size_t, const byte[], size_t)> output) const
    {
    if(shares.size() < k)
       throw std::logic_error("Could not decode, less than k surviving shares");
@@ -643,6 +639,7 @@ void fec_code::decode(
     If shares.size() < k:
           signal decoding error for missing shares < k
           emit existing shares < k
+        (ie, partial recovery if possible)
     Assert share_size % k == 0
     Check that all share #s < n
    */
@@ -657,7 +654,7 @@ void fec_code::decode(
       can output directly
       */
       if(share_id < k)
-         out(share_id, k, search_map(shares, share_id), share_size);
+         output(share_id, k, search_map(shares, share_id), share_size);
       else
          {
          std::vector<byte> buf(share_size);
@@ -665,7 +662,7 @@ void fec_code::decode(
             {
             addmul(&buf[0], search_map(shares, indexes[col]), m_dec[i*k + col], share_size);
             }
-         out(i, k, &buf[0], share_size);
+         output(i, k, &buf[0], share_size);
          }
       }
    }
