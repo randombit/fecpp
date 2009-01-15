@@ -45,15 +45,11 @@ void write_zfec_header(std::ostream& output,
    else if(bitsused <= 32)
       out <<= (32 - bitsused);
 
-   printf("%08X %d\n", out, bitsused);
-
    for(size_t i = 0; i != (bitsused+7)/8; ++i)
       {
-      unsigned char b = get_byte((bitsused+7)/8 + i, out);
+      unsigned char b = get_byte(i + (sizeof(size_t) - (bitsused+7)/8), out);
       output.write((char*)&b, 1);
-      printf("byte %d = %02X\n", i, b);
       }
-   printf("\n");
    }
 
 class zfec_file_writer
@@ -137,8 +133,13 @@ void zfec_encode(size_t k, size_t n,
    zfec_encode(k, n, prefix, in, in_length);
    }
 
-int main()
+#include <stdlib.h>
+
+int main(int argc, char* argv[])
    {
+   int k = atoi(argv[1]);
+   int m = atoi(argv[2]);
+
    std::ifstream in("tests.txt");
-   zfec_encode(3, 5, "tests.txt", in);
+   zfec_encode(k, m, "fecpp/tests.txt", in);
    }
