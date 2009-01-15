@@ -229,11 +229,11 @@ void addmul_k(byte dst[], byte* srcs[], const byte cs[],
    }
 
 /*
-* invert_mat() takes a matrix and produces its inverse k is the size
+* invert_matix() takes a matrix and produces its inverse k is the size
 * of the matrix.  (Gauss-Jordan, adapted from Numerical Recipes in C)
 * Return non-zero if singular.
 */
-void invert_mat(byte *src, int k)
+void invert_matix(byte *src, int k)
    {
    int irow, icol;
 
@@ -288,7 +288,7 @@ void invert_mat(byte *src, int k)
          }
 
       if(icol == -1)
-         throw std::invalid_argument("pivot not found in invert_mat");
+         throw std::invalid_argument("pivot not found in invert_matix");
 
       found_piv:
 
@@ -424,61 +424,6 @@ void invert_vdm(byte *src, int k)
       }
    }
 
-/*
-* shuffle move src packets in their position
-*/
-void shuffle(byte *pkt[], size_t index[], size_t k)
-   {
-   for(size_t i = 0; i < k;)
-      {
-      if(index[i] >= k || index[i] == i)
-         i++;
-      else
-         {
-         /*
-         * put pkt in the right position (first check for conflicts).
-         */
-         size_t c = index[i];
-
-         if(index[c] == c)
-            throw std::logic_error("decode shuffle failed");
-
-         std::swap(index[i], index[c]);
-         std::swap(pkt[i], pkt[c]);
-         }
-      }
-   }
-
-/*
-* build_decode_matrix constructs the encoding matrix given the
-* indexes. The matrix must be already allocated as
-* a vector of k*k elements, in row-major order
-*/
-std::vector<byte>
-build_decode_matrix(size_t k, size_t n,
-                    const byte* enc_matrix, const size_t index[])
-   {
-   std::vector<byte> matrix(k * k);
-
-   byte* p = &matrix[0];
-
-   for(size_t i = 0; i != k; ++i)
-      {
-      if(index[i] >= n)
-         throw std::logic_error("bad index in build_decode_matrix");
-
-      if(1 && index[i] < k)
-         p[i] = 1;
-      else
-         std::memcpy(p, &(enc_matrix[index[i]*k]), k);
-
-      p += k;
-      }
-
-   invert_mat(&matrix[0], k);
-   return matrix;
-   }
-
 }
 
 /*
@@ -524,7 +469,7 @@ fec_code::fec_code(size_t k_arg, size_t n_arg) :
    * k*k vandermonde matrix, multiply right the bottom n-k rows
    * by the inverse, and construct the identity matrix at the top.
    */
-   invert_vdm(&tmp_m[0], k); /* much faster than invert_mat */
+   invert_vdm(&tmp_m[0], k); /* much faster than invert_matix */
 
    /*
    * computes C = AB where A is n*k, B is k*m, C is n*m
@@ -584,56 +529,11 @@ void fec_code::encode(
 *   index: pointer to packet indexes (modified)
 *   sz:    size of each packet
 */
-template<typename K, typename V>
-inline V search_map(const std::map<K, V>& mapping,
-                    const K& key,
-                    const V& null_result = V())
-   {
-   typename std::map<K, V>::const_iterator i = mapping.find(key);
-   if(i == mapping.end())
-      return null_result;
-   return i->second;
-   }
-
-std::vector<size_t>
-choose_indexes(const std::map<size_t, const byte*>& shares, size_t k)
-   {
-   if(shares.size() < k)
-      throw std::invalid_argument("not enough shares");
-
-   std::map<size_t, const byte*>::const_iterator b = shares.begin();
-   std::map<size_t, const byte*>::const_reverse_iterator e = shares.rbegin();
-
-   std::vector<size_t> indexes;
-
-   for(size_t i = 0; i != k; ++i)
-      {
-      if(b->first == i)
-         {
-         indexes.push_back(b->first);
-         ++b;
-         }
-      else
-         {
-         indexes.push_back(e->first);
-         ++e;
-         }
-      }
-
-   return indexes;
-   }
-
 void fec_code::decode(
-   const std::map<size_t, const byte*>& shares, size_t share_size,
+   const std::map<size_t, const byte*>& shares,
+   size_t share_size,
    std::tr1::function<void (size_t, size_t, const byte[], size_t)> output) const
    {
-   if(shares.size() < k)
-      throw std::logic_error("Could not decode, less than k surviving shares");
-
-   std::vector<size_t> indexes = choose_indexes(shares, k);
-
-   std::vector<byte> m_dec = build_decode_matrix(k, n, &enc_matrix[0], &indexes[0]);
-
    /*
    Todo:
     If shares.size() < k:
@@ -641,27 +541,71 @@ void fec_code::decode(
           emit existing shares < k
         (ie, partial recovery if possible)
     Assert share_size % k == 0
-    Check that all share #s < n
    */
 
-   for(size_t i = 0; i != indexes.size(); ++i)
+   if(shares.size() < k)
+      throw std::logic_error("Could not decode, less than k surviving shares");
+
+   std::vector<byte> m_dec(k * k);
+   std::vector<size_t> indexes(k);
+   std::vector<const byte*> sharesv(k);
+
+   std::map<size_t, const byte*>::const_iterator shares_b_iter = shares.begin();
+   std::map<size_t, const byte*>::const_reverse_iterator shares_e_iter = shares.rbegin();
+
+   for(size_t i = 0; i != k; ++i)
       {
-      size_t share_id = indexes[i];
+      size_t share_id = 0;
+      const byte* share_data = 0;
+
+      if(shares_b_iter->first == i)
+         {
+         share_id = shares_b_iter->first;
+         share_data = shares_b_iter->second;
+         ++shares_b_iter;
+         }
+      else
+         {
+         // if share i not found, use the unused one closest to n
+         share_id = shares_e_iter->first;
+         share_data = shares_e_iter->second;
+         ++shares_e_iter;
+         }
+
+      if(share_id >= n)
+         throw std::logic_error("Invalid share identifier detected during decode");
 
       /*
       This is a systematic code (encoding matrix includes k*k identity
       matrix), so shares less than k are copies of the input data,
-      can output directly
+      can output directly. Also we know the encoding matrix in those rows
+      contains I, so we can set the single bit directly without copying
       */
       if(share_id < k)
-         output(share_id, k, search_map(shares, share_id), share_size);
-      else
+         {
+         m_dec[i*(k+1)] = 1;
+         output(share_id, k, share_data, share_size);
+         }
+      else // will decode after inverting matrix
+         std::memcpy(&m_dec[i*k], &(enc_matrix[share_id*k]), k);
+
+      sharesv[i] = share_data;
+      indexes[i] = share_id;
+      }
+
+   /*
+   TODO: if all primary shares were recovered, don't invert the matrix
+   and return immediately
+   */
+   invert_matix(&m_dec[0], k);
+
+   for(size_t i = 0; i != indexes.size(); ++i)
+      {
+      if(indexes[i] >= k)
          {
          std::vector<byte> buf(share_size);
          for(size_t col = 0; col < k; col++)
-            {
-            addmul(&buf[0], search_map(shares, indexes[col]), m_dec[i*k + col], share_size);
-            }
+            addmul(&buf[0], sharesv[col], m_dec[i*k + col], share_size);
          output(i, k, &buf[0], share_size);
          }
       }
