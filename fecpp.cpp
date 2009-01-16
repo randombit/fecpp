@@ -216,7 +216,7 @@ void addmul_k(byte dst[], byte* srcs[], const byte cs[],
 * of the matrix.  (Gauss-Jordan, adapted from Numerical Recipes in C)
 * Return non-zero if singular.
 */
-void invert_matrix(byte *src, int k)
+void invert_matrix(byte *src, size_t k)
    {
    std::vector<int> indxc(k);
    std::vector<int> indxr(k);
@@ -228,9 +228,8 @@ void invert_matrix(byte *src, int k)
 
    std::vector<byte> id_row(k);
 
-   for(int col = 0; col < k; col++)
+   for(size_t col = 0; col != k; ++col)
       {
-      byte *pivot_row;
       /*
       * Zeroing column 'col', look for a non-zero element.
       * First try on the diagonal, if it fails, look elsewhere.
@@ -244,18 +243,18 @@ void invert_matrix(byte *src, int k)
          goto found_piv;
          }
 
-      for(int row = 0; row < k; row++)
+      for(size_t row = 0; row != k; ++row)
          {
          if(ipiv[row] == false)
             {
-            for(int ix = 0; ix < k; ix++)
+            for(size_t i = 0; i != k; ++i)
                {
-               if(ipiv[ix] == false)
+               if(ipiv[i] == false)
                   {
-                  if(src[row*k + ix] != 0)
+                  if(src[row*k + i] != 0)
                      {
                      irow = row;
-                     icol = ix;
+                     icol = i;
                      goto found_piv;
                      }
                   }
@@ -279,13 +278,13 @@ void invert_matrix(byte *src, int k)
       */
       if(irow != icol)
          {
-         for(int i = 0; i < k; i++)
+         for(size_t i = 0; i != k; ++i)
             std::swap(src[irow*k + i], src[icol*k + i]);
          }
 
       indxr[col] = irow;
       indxc[col] = icol;
-      pivot_row = &src[icol*k];
+      byte* pivot_row = &src[icol*k];
       byte c = pivot_row[icol];
 
       if(c == 0)
@@ -302,7 +301,7 @@ void invert_matrix(byte *src, int k)
 
          const byte* mul_c = GF_MUL_TABLE[c];
 
-         for(int i = 0; i < k; i++)
+         for(size_t i = 0; i != k; ++i)
             pivot_row[i] = mul_c[pivot_row[i]];
          }
 
@@ -318,7 +317,7 @@ void invert_matrix(byte *src, int k)
          {
          byte* p = src;
 
-         for(int i = 0; i < k; ++i)
+         for(size_t i = 0; i != k; ++i)
             {
             if(i != icol)
                {
@@ -334,13 +333,9 @@ void invert_matrix(byte *src, int k)
 
    for(int col = k-1; col >= 0; col--)
       {
-      if(indxr[col] < 0 || indxr[col] >= k)
-         fprintf(stderr, "AARGH, indxr[col] %d\n", indxr[col]);
-      else if(indxc[col] < 0 || indxc[col] >= k)
-         fprintf(stderr, "AARGH, indxc[col] %d\n", indxc[col]);
-      else if(indxr[col] != indxc[col])
+      if(indxr[col] != indxc[col])
          {
-         for(int row = 0; row < k; row++)
+         for(size_t row = 0; row != k; ++row)
             std::swap(src[row*k + indxr[col]], src[row*k + indxc[col]]);
          }
       }
@@ -370,6 +365,7 @@ void invert_vdm(byte vdm[], size_t k)
 
    for(size_t i = 0; i != k; ++i)
       p[i] = vdm[1+i*k];
+      //p[i] = GF_EXP[(((1+i*k) / k) * ((1+i*k) % k)) % 255];
 
    /*
    * construct coeffs. recursively. We know c[k] = 1 (implicit)
@@ -429,7 +425,7 @@ fec_code::fec_code(size_t k_arg, size_t n_arg) :
       throw std::invalid_argument("fec_code: k must be <= n");
 
    /*
-   * the upper matrix is I so do not bother with a slow multiply
+   * the upper matrix is I
    */
    for(size_t i = 0; i != k; ++i)
       enc_matrix[i*(k+1)] = 1;
