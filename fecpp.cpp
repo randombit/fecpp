@@ -229,19 +229,16 @@ void addmul_k(byte dst[], byte* srcs[], const byte cs[],
    }
 
 /*
-* invert_matix() takes a matrix and produces its inverse k is the size
+* invert_matrix() takes a matrix and produces its inverse k is the size
 * of the matrix.  (Gauss-Jordan, adapted from Numerical Recipes in C)
 * Return non-zero if singular.
 */
-void invert_matix(byte *src, int k)
+void invert_matrix(byte *src, int k)
    {
-   int irow, icol;
-
    std::vector<int> indxc(k);
    std::vector<int> indxr(k);
    std::vector<int> ipiv(k);
    std::vector<byte> id_row(k);
-   std::vector<byte> temp_row(k);
 
    /*
    * ipiv marks elements already used as pivots.
@@ -256,7 +253,7 @@ void invert_matix(byte *src, int k)
       * Zeroing column 'col', look for a non-zero element.
       * First try on the diagonal, if it fails, look elsewhere.
       */
-      irow = icol = -1;
+      int irow = -1, icol = -1;
 
       if(ipiv[col] != 1 && src[col*k + col] != 0)
          {
@@ -269,8 +266,7 @@ void invert_matix(byte *src, int k)
          {
          if(ipiv[row] != 1)
             {
-            int ix;
-            for(ix = 0; ix < k; ix++)
+            for(int ix = 0; ix < k; ix++)
                {
                if(ipiv[ix] == 0)
                   {
@@ -288,7 +284,7 @@ void invert_matix(byte *src, int k)
          }
 
       if(icol == -1)
-         throw std::invalid_argument("pivot not found in invert_matix");
+         throw std::invalid_argument("pivot not found in invert_matrix");
 
       found_piv:
 
@@ -376,7 +372,7 @@ void invert_matix(byte *src, int k)
 * p = coefficients of the matrix (p_i)
 * q = values of the polynomial (known)
 */
-void invert_vdm(byte *src, int k)
+void invert_vdm(byte vdm[], size_t k)
    {
    if(k == 1) /* degenerate case, matrix must be p^0 = 1 */
       return;
@@ -385,13 +381,10 @@ void invert_vdm(byte *src, int k)
    * c holds the coefficient of P(x) = Prod (x - p_i), i=0..k-1
    * b holds the coefficient for the matrix inversion
    */
-   std::vector<byte> c(k), b(k), p(k);
+   std::vector<byte> c(k), p(k);
 
-   for(int j = 1, i = 0; i < k; i++, j += k)
-      {
-      c[i] = 0;
-      p[i] = src[j];    /* p[i] */
-      }
+   for(size_t i = 0; i != k; ++i)
+      p[i] = vdm[1+i*k];
 
    /*
    * construct coeffs. recursively. We know c[k] = 1 (implicit)
@@ -400,15 +393,17 @@ void invert_vdm(byte *src, int k)
    * After k steps we are done.
    */
    c[k-1] = p[0]; /* really -p(0), but x = -x in GF(2^m) */
-   for(int i = 1; i < k; i++)
+   for(size_t i = 1; i < k; ++i)
       {
       byte p_i = p[i]; /* see above comment */
-      for(int j = k-1  - (i - 1); j < k-1; j++)
+      for(size_t j = k-1  - (i - 1); j < k-1; ++j)
          c[j] ^= gf_mul(p_i, c[j+1]);
       c[k-1] ^= p_i;
       }
 
-   for(int row = 0; row < k; row++)
+   std::vector<byte> b(k);
+
+   for(size_t row = 0; row < k; ++row)
       {
       // synthetic division etc.
       byte xx = p[row];
@@ -419,8 +414,9 @@ void invert_vdm(byte *src, int k)
          b[i] = c[i+1] ^ gf_mul(xx, b[i+1]);
          t = gf_mul(xx, t) ^ b[i];
          }
-      for(int col = 0; col < k; col++)
-         src[col*k + row] = gf_mul(GF_INVERSE[t], b[col]);
+
+      for(size_t col = 0; col < k; col++)
+         vdm[col*k + row] = gf_mul(GF_INVERSE[t], b[col]);
       }
    }
 
@@ -469,7 +465,7 @@ fec_code::fec_code(size_t k_arg, size_t n_arg) :
    * k*k vandermonde matrix, multiply right the bottom n-k rows
    * by the inverse, and construct the identity matrix at the top.
    */
-   invert_vdm(&tmp_m[0], k); /* much faster than invert_matix */
+   invert_vdm(&tmp_m[0], k); /* much faster than invert_matrix */
 
    /*
    * computes C = AB where A is n*k, B is k*m, C is n*m
@@ -597,7 +593,7 @@ void fec_code::decode(
    TODO: if all primary shares were recovered, don't invert the matrix
    and return immediately
    */
-   invert_matix(&m_dec[0], k);
+   invert_matrix(&m_dec[0], k);
 
    for(size_t i = 0; i != indexes.size(); ++i)
       {
