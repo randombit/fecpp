@@ -249,14 +249,11 @@ void invert_matrix(byte *src, size_t k)
             {
             for(size_t i = 0; i != k; ++i)
                {
-               if(ipiv[i] == false)
+               if(ipiv[i] == false && src[row*k + i] != 0)
                   {
-                  if(src[row*k + i] != 0)
-                     {
-                     irow = row;
-                     icol = i;
-                     goto found_piv;
-                     }
+                  irow = row;
+                  icol = i;
+                  goto found_piv;
                   }
                }
             }
@@ -352,20 +349,19 @@ void invert_matrix(byte *src, size_t k)
 * p = coefficients of the matrix (p_i)
 * q = values of the polynomial (known)
 */
-void invert_vdm(byte vdm[], size_t k)
+void create_inverted_vdm(byte vdm[], size_t k)
    {
    if(k == 1) /* degenerate case, matrix must be p^0 = 1 */
+      {
+      vdm[0] = 1;
       return;
+      }
 
    /*
    * c holds the coefficient of P(x) = Prod (x - p_i), i=0..k-1
    * b holds the coefficient for the matrix inversion
    */
-   std::vector<byte> b(k), c(k), p(k);
-
-   for(size_t i = 0; i != k; ++i)
-      p[i] = vdm[1+i*k];
-      //p[i] = GF_EXP[(((1+i*k) / k) * ((1+i*k) % k)) % 255];
+   std::vector<byte> b(k), c(k);
 
    /*
    * construct coeffs. recursively. We know c[k] = 1 (implicit)
@@ -373,20 +369,20 @@ void invert_vdm(byte vdm[], size_t k)
    * x - p_i generating P_i = x P_{i-1} - p_i P_{i-1}
    * After k steps we are done.
    */
-   c[k-1] = p[0]; /* really -p(0), but x = -x in GF(2^m) */
+   c[k-1] = 0; /* really -p(0), but x = -x in GF(2^m) */
    for(size_t i = 1; i < k; ++i)
       {
-      const byte* mul_p_i = GF_MUL_TABLE[p[i]];
+      const byte* mul_p_i = GF_MUL_TABLE[GF_EXP[i]];
 
       for(size_t j = k-1  - (i - 1); j < k-1; ++j)
          c[j] ^= mul_p_i[c[j+1]];
-      c[k-1] ^= p[i];
+      c[k-1] ^= GF_EXP[i];
       }
 
    for(size_t row = 0; row < k; ++row)
       {
       // synthetic division etc.
-      const byte* mul_p_row = GF_MUL_TABLE[p[row]];
+      const byte* mul_p_row = GF_MUL_TABLE[row == 0 ? 0 : GF_EXP[row]];
 
       byte t = 1;
       b[k-1] = 1; /* this is in fact c[k] */
@@ -397,7 +393,7 @@ void invert_vdm(byte vdm[], size_t k)
          }
 
       const byte* mul_t_inv = GF_MUL_TABLE[GF_INVERSE[t]];
-      for(size_t col = 0; col < k; col++)
+      for(size_t col = 0; col != k; ++col)
          vdm[col*k + row] = mul_t_inv[b[col]];
       }
    }
@@ -425,28 +421,26 @@ fec_code::fec_code(size_t k_arg, size_t n_arg) :
       throw std::invalid_argument("fec_code: k must be <= n");
 
    /*
-   * the upper matrix is I
-   */
-   for(size_t i = 0; i != k; ++i)
-      enc_matrix[i*(k+1)] = 1;
-
-   /*
    * Fill the matrix with powers of field elements, starting from 0.
    * The first row is special, cannot be computed with exp. table.
-   */
+  */
    std::vector<byte> tmp_m(n * k);
-   tmp_m[0] = 1;
-   // rest of row 0 is 0s
-
-   for(size_t i = k; i != tmp_m.size(); ++i)
-      tmp_m[i] = GF_EXP[((i / k) * (i % k)) % 255];
 
    /*
    * quick code to build systematic matrix: invert the top
    * k*k vandermonde matrix, multiply right the bottom n-k rows
    * by the inverse, and construct the identity matrix at the top.
    */
-   invert_vdm(&tmp_m[0], k); /* much faster than invert_matrix */
+   create_inverted_vdm(&tmp_m[0], k); /* much faster than invert_matrix */
+
+   for(size_t i = k*k; i != tmp_m.size(); ++i)
+      tmp_m[i] = GF_EXP[((i / k) * (i % k)) % 255];
+
+   /*
+   * the upper part of the encoding matrix is I
+   */
+   for(size_t i = 0; i != k; ++i)
+      enc_matrix[i*(k+1)] = 1;
 
    /*
    * computes C = AB where A is n*k, B is k*m, C is n*m
