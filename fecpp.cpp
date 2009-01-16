@@ -220,14 +220,13 @@ void invert_matrix(byte *src, int k)
    {
    std::vector<int> indxc(k);
    std::vector<int> indxr(k);
-   std::vector<int> ipiv(k);
-   std::vector<byte> id_row(k);
 
    /*
    * ipiv marks elements already used as pivots.
    */
-   for(int i = 0; i < k; i++)
-      ipiv[i] = 0;
+   std::vector<bool> ipiv(k);
+
+   std::vector<byte> id_row(k);
 
    for(int col = 0; col < k; col++)
       {
@@ -238,7 +237,7 @@ void invert_matrix(byte *src, int k)
       */
       int irow = -1, icol = -1;
 
-      if(ipiv[col] != 1 && src[col*k + col] != 0)
+      if(ipiv[col] == false && src[col*k + col] != 0)
          {
          irow = col;
          icol = col;
@@ -247,11 +246,11 @@ void invert_matrix(byte *src, int k)
 
       for(int row = 0; row < k; row++)
          {
-         if(ipiv[row] != 1)
+         if(ipiv[row] == false)
             {
             for(int ix = 0; ix < k; ix++)
                {
-               if(ipiv[ix] == 0)
+               if(ipiv[ix] == false)
                   {
                   if(src[row*k + ix] != 0)
                      {
@@ -260,8 +259,6 @@ void invert_matrix(byte *src, int k)
                      goto found_piv;
                      }
                   }
-               else if(ipiv[ix] > 1)
-                  throw std::invalid_argument("singlar matrix");
                }
             }
          }
@@ -271,7 +268,9 @@ void invert_matrix(byte *src, int k)
 
       found_piv:
 
-      ++(ipiv[icol]);
+      if(ipiv[icol])
+         throw std::invalid_argument("singlar matrix");
+      ipiv[icol] = true;
 
       /*
       * swap rows irow and icol, so afterwards the diagonal
