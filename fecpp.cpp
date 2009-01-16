@@ -131,30 +131,7 @@ const byte GF_INVERSE[256] = {
 0xB5, 0xEA, 0x03, 0x8F, 0xD3, 0xC9, 0x42, 0xD4, 0xE8, 0x75, 0x7F,
 0xFF, 0x7E, 0xFD };
 
-/*
-* gf_mul(x,y) multiplies two numbers. If GF_BITS<=8, it is much
-* faster to use a multiplication table.
-*
-* USE_GF_MULC, GF_MULC0(c) and GF_ADDMULC(x) can be used when multiplying
-* many numbers by the same constant. In this case the first
-* call sets the constant, and others perform the multiplications.
-* A value related to the multiplication is held in a local variable
-* declared with USE_GF_MULC . See usage in addmul1().
-*/
-static byte gf_mul_table[0xFF + 1][0xFF + 1];
-
-#define gf_mul(x,y) gf_mul_table[x][y]
-
-void
-init_mul_table()
-   {
-   for(size_t i = 0; i < 256; ++i)
-      for(size_t j = 0; j < 256; ++j)
-         gf_mul_table[i][j] = GF_EXP[(GF_LOG[i] + GF_LOG[j]) % 255];
-
-   for(size_t i = 0; i < 256; ++i)
-      gf_mul_table[0][i] = gf_mul_table[i][0] = 0;
-   }
+static byte GF_MUL_TABLE[256][256];
 
 void init_fec()
    {
@@ -163,7 +140,13 @@ void init_fec()
    if(!fec_initialized)
       {
       fec_initialized = true;
-      init_mul_table();
+
+      for(size_t i = 0; i != 256; ++i)
+         for(size_t j = 0; j != 256; ++j)
+            GF_MUL_TABLE[i][j] = GF_EXP[(GF_LOG[i] + GF_LOG[j]) % 255];
+
+      for(size_t i = 0; i != 256; ++i)
+         GF_MUL_TABLE[0][i] = GF_MUL_TABLE[i][0] = 0;
       }
    }
 
@@ -183,32 +166,32 @@ void addmul(byte dst[], const byte src[], byte c, int sz)
    if(c == 0)
       return;
 
-   const byte* mul_base = gf_mul_table[c];
+   const byte* mul_c = GF_MUL_TABLE[c];
    byte *lim = &dst[sz - 16 + 1];
 
    for(; dst < lim; dst += 16, src += 16)
       {
-      dst[0] ^= mul_base[src[0]];
-      dst[1] ^= mul_base[src[1]];
-      dst[2] ^= mul_base[src[2]];
-      dst[3] ^= mul_base[src[3]];
-      dst[4] ^= mul_base[src[4]];
-      dst[5] ^= mul_base[src[5]];
-      dst[6] ^= mul_base[src[6]];
-      dst[7] ^= mul_base[src[7]];
-      dst[8] ^= mul_base[src[8]];
-      dst[9] ^= mul_base[src[9]];
-      dst[10] ^= mul_base[src[10]];
-      dst[11] ^= mul_base[src[11]];
-      dst[12] ^= mul_base[src[12]];
-      dst[13] ^= mul_base[src[13]];
-      dst[14] ^= mul_base[src[14]];
-      dst[15] ^= mul_base[src[15]];
+      dst[0] ^= mul_c[src[0]];
+      dst[1] ^= mul_c[src[1]];
+      dst[2] ^= mul_c[src[2]];
+      dst[3] ^= mul_c[src[3]];
+      dst[4] ^= mul_c[src[4]];
+      dst[5] ^= mul_c[src[5]];
+      dst[6] ^= mul_c[src[6]];
+      dst[7] ^= mul_c[src[7]];
+      dst[8] ^= mul_c[src[8]];
+      dst[9] ^= mul_c[src[9]];
+      dst[10] ^= mul_c[src[10]];
+      dst[11] ^= mul_c[src[11]];
+      dst[12] ^= mul_c[src[12]];
+      dst[13] ^= mul_c[src[13]];
+      dst[14] ^= mul_c[src[14]];
+      dst[15] ^= mul_c[src[15]];
       }
 
    lim += 16 - 1;
    for(; dst < lim; dst++, src++)
-      *dst ^= mul_base[*src];
+      *dst ^= mul_c[*src];
    }
 
 void addmul_k(byte dst[], byte* srcs[], const byte cs[],
@@ -220,7 +203,7 @@ void addmul_k(byte dst[], byte* srcs[], const byte cs[],
       if(c == 0)
          continue;
 
-      const byte* mul_c = gf_mul_table[c];
+      const byte* mul_c = GF_MUL_TABLE[c];
       const byte* src = srcs[i];
 
       for(size_t j = 0; j != size; ++j)
@@ -317,8 +300,11 @@ void invert_matrix(byte *src, int k)
          */
          c = GF_INVERSE[c];
          pivot_row[icol] = 1;
+
+         const byte* mul_c = GF_MUL_TABLE[c];
+
          for(int i = 0; i < k; i++)
-            pivot_row[i] = gf_mul(c, pivot_row[i]);
+            pivot_row[i] = mul_c[pivot_row[i]];
          }
 
       /*
@@ -381,7 +367,7 @@ void invert_vdm(byte vdm[], size_t k)
    * c holds the coefficient of P(x) = Prod (x - p_i), i=0..k-1
    * b holds the coefficient for the matrix inversion
    */
-   std::vector<byte> c(k), p(k);
+   std::vector<byte> b(k), c(k), p(k);
 
    for(size_t i = 0; i != k; ++i)
       p[i] = vdm[1+i*k];
@@ -395,43 +381,43 @@ void invert_vdm(byte vdm[], size_t k)
    c[k-1] = p[0]; /* really -p(0), but x = -x in GF(2^m) */
    for(size_t i = 1; i < k; ++i)
       {
-      byte p_i = p[i]; /* see above comment */
-      for(size_t j = k-1  - (i - 1); j < k-1; ++j)
-         c[j] ^= gf_mul(p_i, c[j+1]);
-      c[k-1] ^= p_i;
-      }
+      const byte* mul_p_i = GF_MUL_TABLE[p[i]];
 
-   std::vector<byte> b(k);
+      for(size_t j = k-1  - (i - 1); j < k-1; ++j)
+         c[j] ^= mul_p_i[c[j+1]];
+      c[k-1] ^= p[i];
+      }
 
    for(size_t row = 0; row < k; ++row)
       {
       // synthetic division etc.
-      byte xx = p[row];
+      const byte* mul_p_row = GF_MUL_TABLE[p[row]];
+
       byte t = 1;
       b[k-1] = 1; /* this is in fact c[k] */
       for(int i = k-2; i >= 0; i--)
          {
-         b[i] = c[i+1] ^ gf_mul(xx, b[i+1]);
-         t = gf_mul(xx, t) ^ b[i];
+         b[i] = c[i+1] ^ mul_p_row[b[i+1]];
+         t = b[i] ^ mul_p_row[t];
          }
 
+      const byte* mul_t_inv = GF_MUL_TABLE[GF_INVERSE[t]];
       for(size_t col = 0; col < k; col++)
-         vdm[col*k + row] = gf_mul(GF_INVERSE[t], b[col]);
+         vdm[col*k + row] = mul_t_inv[b[col]];
       }
    }
 
 }
 
 /*
-* This section contains the proper FEC encoding/decoding routines.
-* The encoding matrix is computed starting with a Vandermonde matrix,
-* and then transforming it into a systematic matrix.
-*/
+ * This section contains the proper FEC encoding/decoding routines.
+ * The encoding matrix is computed starting with a Vandermonde matrix,
+ * and then transforming it into a systematic matrix.
+ */
 
 /*
-* create a new encoder, returning a descriptor. This contains k,n and
-* the encoding matrix.
-*/
+ * fec_code constructor
+ */
 fec_code::fec_code(size_t k_arg, size_t n_arg) :
    k(k_arg), n(n_arg), enc_matrix(n * k)
    {
@@ -478,16 +464,14 @@ fec_code::fec_code(size_t k_arg, size_t n_arg) :
          const byte* pb = &tmp_m[col];
          byte acc = 0;
          for(size_t i = 0; i < k; i++, pa++, pb += k)
-            acc ^= gf_mul(*pa, *pb);
+            acc ^= GF_MUL_TABLE[*pa][*pb];
          enc_matrix[row + col] = acc;
          }
       }
    }
 
 /*
-* fec_encode accepts as input pointers to k data packets of size sz,
-* and produces as output a packet pointed to by fec, computed
-* with index "index".
+* FEC encoding routine
 */
 void fec_code::encode(
    const byte input[], size_t size,
@@ -515,15 +499,7 @@ void fec_code::encode(
    }
 
 /*
-* fec_decode receives as input a vector of packets, the indexes of
-* packets, and produces the correct vector as output.
-*
-* Input:
-*   code: pointer to code descriptor
-*   pkt:  pointers to received packets. They are modified
-*         to store the output packets (in place)
-*   index: pointer to packet indexes (modified)
-*   sz:    size of each packet
+* FEC decoding routine
 */
 void fec_code::decode(
    const std::map<size_t, const byte*>& shares,
