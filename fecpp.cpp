@@ -194,23 +194,6 @@ void addmul(byte dst[], const byte src[], byte c, size_t sz)
       *dst ^= mul_c[*src];
    }
 
-void addmul_k(byte dst[], byte* srcs[], const byte cs[],
-              size_t size, size_t k)
-   {
-   for(size_t i = 0; i != k; ++i)
-      {
-      byte c = cs[i];
-      if(c == 0)
-         continue;
-
-      const byte* mul_c = GF_MUL_TABLE[c];
-      const byte* src = srcs[i];
-
-      for(size_t j = 0; j != size; ++j)
-         dst[j] ^= mul_c[src[j]];
-      }
-   }
-
 /*
 * invert_matrix() takes a matrix and produces its inverse k is the size
 * of the matrix.  (Gauss-Jordan, adapted from Numerical Recipes in C)
