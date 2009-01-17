@@ -3,6 +3,8 @@
 #include <fstream>
 #include <sstream>
 
+using fecpp::byte;
+
 namespace {
 
 size_t log2_ceil(size_t n)
@@ -104,7 +106,7 @@ void zfec_encode(size_t k, size_t n,
    {
    const size_t chunksize = 4096;
 
-   fec_code fec(k, n);
+   fecpp::fec_code fec(k, n);
 
    std::vector<byte> buf(chunksize * k);
 

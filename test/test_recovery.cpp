@@ -4,6 +4,8 @@
 #include <vector>
 #include <boost/algorithm/string.hpp>
 
+using fecpp::byte;
+
 std::string decode_hex(const std::string& in)
    {
    const unsigned char HEX_TO_BIN[256] = {
@@ -131,7 +133,7 @@ bool check_recovery(byte k, byte n, const std::string& hex_input,
       packets.push_back(decode_hex(hex_packets[i]));
 
    printf("%d, %d\n", k, n);
-   fec_code code(k, n);
+   fecpp::fec_code code(k, n);
 
    std::map<size_t, const byte*> packets_map;
    for(size_t i = 0; i != packets.size(); ++i)

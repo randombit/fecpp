@@ -14,10 +14,15 @@
 #include <vector>
 #include <tr1/functional>
 
+namespace fecpp {
+
 using std::size_t;
 
 typedef unsigned char byte;
 
+/**
+* Forward error correction code
+*/
 class fec_code
    {
    public:
@@ -55,5 +60,7 @@ class fec_code
       size_t K, N;
       std::vector<byte> enc_matrix;
    };
+
+}
 
 #endif

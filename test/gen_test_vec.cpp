@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+using fecpp::byte;
+
 void print_block(size_t block_no, size_t n,
                  const byte share[], size_t share_len)
    {
@@ -15,7 +17,7 @@ void print_block(size_t block_no, size_t n,
 
 void gen_test_vector(int k, int n)
    {
-   fec_code code(k, n);
+   fecpp::fec_code fec(k, n);
 
    std::vector<byte> buf(k * (64 + rand() % 512));
    //std::vector<byte> buf(k * (3 + rand() % 5));
@@ -28,7 +30,7 @@ void gen_test_vector(int k, int n)
       printf("%02X", buf[i]);
    printf(", ");
 
-   code.encode(&buf[0], buf.size(), print_block);
+   fec.encode(&buf[0], buf.size(), print_block);
 
    printf("\n");
    }

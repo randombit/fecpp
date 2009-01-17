@@ -11,7 +11,8 @@
 #include <stdexcept>
 #include <vector>
 #include <cstring>
-#include <sstream>
+
+namespace fecpp {
 
 namespace {
 
@@ -151,10 +152,6 @@ void init_fec()
    }
 
 /*
-* Various linear algebra operations that i use often.
-*/
-
-/*
 * addmul() computes dst[] = dst[] + c * src[]
 * This is used often, so better optimize it! Currently the loop is
 * unrolled 16 times, a good value for 486 and pentium-class machines.
@@ -195,21 +192,21 @@ void addmul(byte dst[], const byte src[], byte c, size_t sz)
    }
 
 /*
-* invert_matrix() takes a matrix and produces its inverse k is the size
-* of the matrix.  (Gauss-Jordan, adapted from Numerical Recipes in C)
+* invert_matrix() takes a K*K matrix and produces its inverse
+* (Gauss-Jordan algorithm, adapted from Numerical Recipes in C)
 */
-void invert_matrix(byte *src, size_t K)
+void invert_matrix(byte matrix[], size_t K)
    {
    class pivot_searcher
       {
       public:
          pivot_searcher(size_t K) : ipiv(K) {}
 
-         std::pair<size_t, size_t> operator()(size_t col, const byte* src)
+         std::pair<size_t, size_t> operator()(size_t col, const byte* matrix)
             {
             const size_t K = ipiv.size();
 
-            if(ipiv[col] == false && src[col*K + col] != 0)
+            if(ipiv[col] == false && matrix[col*K + col] != 0)
                {
                ipiv[col] = true;
                return std::make_pair(col, col);
@@ -222,7 +219,7 @@ void invert_matrix(byte *src, size_t K)
 
                for(size_t i = 0; i != K; ++i)
                   {
-                  if(ipiv[i] == false && src[row*K + i] != 0)
+                  if(ipiv[i] == false && matrix[row*K + i] != 0)
                      {
                      ipiv[i] = true;
                      return std::make_pair(row, i);
@@ -250,7 +247,7 @@ void invert_matrix(byte *src, size_t K)
       * First try on the diagonal, if it fails, look elsewhere.
       */
 
-      std::pair<size_t, size_t> icolrow = pivot_search(col, src);
+      std::pair<size_t, size_t> icolrow = pivot_search(col, matrix);
 
       size_t icol = icolrow.first;
       size_t irow = icolrow.second;
@@ -263,12 +260,12 @@ void invert_matrix(byte *src, size_t K)
       if(irow != icol)
          {
          for(size_t i = 0; i != K; ++i)
-            std::swap(src[irow*K + i], src[icol*K + i]);
+            std::swap(matrix[irow*K + i], matrix[icol*K + i]);
          }
 
       indxr[col] = irow;
       indxc[col] = icol;
-      byte* pivot_row = &src[icol*K];
+      byte* pivot_row = &matrix[icol*K];
       byte c = pivot_row[icol];
 
       if(c == 0)
@@ -299,7 +296,7 @@ void invert_matrix(byte *src, size_t K)
       id_row[icol] = 1;
       if(memcmp(pivot_row, &id_row[0], K) != 0)
          {
-         byte* p = src;
+         byte* p = matrix;
 
          for(size_t i = 0; i != K; ++i)
             {
@@ -320,7 +317,7 @@ void invert_matrix(byte *src, size_t K)
       if(indxr[i] != indxc[i])
          {
          for(size_t row = 0; row != K; ++row)
-            std::swap(src[row*K + indxr[i]], src[row*K + indxc[i]]);
+            std::swap(matrix[row*K + indxr[i]], matrix[row*K + indxc[i]]);
          }
       }
    }
@@ -408,21 +405,17 @@ fec_code::fec_code(size_t K_arg, size_t N_arg) :
    if(K > N)
       throw std::invalid_argument("fec_code: K must be <= N");
 
-   /*
-   * Fill the matrix with powers of field elements, starting from 0.
-   * The first row is special, cannot be computed with exp. table.
-  */
-   std::vector<byte> tmp_m(N * K);
+   std::vector<byte> temp_matrix(N * K);
 
    /*
    * quick code to build systematic matrix: invert the top
    * K*K vandermonde matrix, multiply right the bottom n-K rows
    * by the inverse, and construct the identity matrix at the top.
    */
-   create_inverted_vdm(&tmp_m[0], K);
+   create_inverted_vdm(&temp_matrix[0], K);
 
-   for(size_t i = K*K; i != tmp_m.size(); ++i)
-      tmp_m[i] = GF_EXP[((i / K) * (i % K)) % 255];
+   for(size_t i = K*K; i != temp_matrix.size(); ++i)
+      temp_matrix[i] = GF_EXP[((i / K) * (i % K)) % 255];
 
    /*
    * the upper part of the encoding matrix is I
@@ -437,8 +430,8 @@ fec_code::fec_code(size_t K_arg, size_t N_arg) :
       {
       for(size_t col = 0; col < K; col++)
          {
-         const byte* pa = &tmp_m[row];
-         const byte* pb = &tmp_m[col];
+         const byte* pa = &temp_matrix[row];
+         const byte* pb = &temp_matrix[col];
          byte acc = 0;
          for(size_t i = 0; i < K; i++, pa++, pb += K)
             acc ^= GF_MUL_TABLE[*pa][*pb];
@@ -468,18 +461,18 @@ void fec_code::encode(
       std::vector<byte> fec_buf(block_size);
 
       for(size_t j = 0; j != K; ++j)
-         {
-         addmul(&fec_buf[0], input + j*block_size, enc_matrix[i*K+j], block_size);
-         /*
-         if(enc_matrix[i*K+j])
-            {
-            const byte* mul_c = GF_MUL_TABLE[enc_matrix[i*K+j]];
 
-            for(size_t i = 0; i != block_size; ++i)
-               fec_buf[i] ^= mul_c[input[j*block_size + i]];
-            }
-         */
+#if 1
+         addmul(&fec_buf[0], input + j*block_size,
+                enc_matrix[i*K+j], block_size);
+#else
+         {
+         const byte* mul_c = GF_MUL_TABLE[enc_matrix[i*K+j]];
+
+         for(size_t k = 0; k != block_size; ++k)
+            fec_buf[k] ^= mul_c[input[j*block_size + k]];
          }
+#endif
 
       output(i, N, &fec_buf[0], fec_buf.size());
       }
@@ -509,8 +502,10 @@ void fec_code::decode(
    std::vector<size_t> indexes(K);
    std::vector<const byte*> sharesv(K);
 
-   std::map<size_t, const byte*>::const_iterator shares_b_iter = shares.begin();
-   std::map<size_t, const byte*>::const_reverse_iterator shares_e_iter = shares.rbegin();
+   std::map<size_t, const byte*>::const_iterator shares_b_iter =
+      shares.begin();
+   std::map<size_t, const byte*>::const_reverse_iterator shares_e_iter =
+      shares.rbegin();
 
    for(size_t i = 0; i != K; ++i)
       {
@@ -532,7 +527,7 @@ void fec_code::decode(
          }
 
       if(share_id >= N)
-         throw std::logic_error("Invalid share identifier detected during decode");
+         throw std::logic_error("Invalid share id detected during decode");
 
       /*
       This is a systematic code (encoding matrix includes K*K identity
@@ -569,3 +564,5 @@ void fec_code::decode(
          }
       }
    }
+
+}

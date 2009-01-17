@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 
+using fecpp::byte;
+
 namespace {
 
 class output_checker
@@ -46,7 +48,7 @@ class save_to_map
 void benchmark_fec(size_t k, size_t n)
    {
 
-   fec_code fec(k, n);
+   fecpp::fec_code fec(k, n);
 
    std::vector<byte> input(k * 1024);
    for(size_t i = 0; i != input.size(); ++i)
