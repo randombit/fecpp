@@ -3,7 +3,9 @@ CC=g++
 WARNINGS= -Wall -Wextra
 CFLAGS=-O2 -g $(WARNINGS)
 
-all: benchmark zfec test_recovery gen_test_vec
+PROGS = benchmark zfec test_recovery gen_test_vec
+
+all: $(PROGS)
 
 libfecpp.so: fecpp.o
 	$(CC) -shared -o $@ $<
@@ -30,5 +32,5 @@ gen_test_vec: test/gen_test_vec.o libfecpp.so
 	$(CC) $(CFLAGS) $< -L. -lfecpp -o $@
 
 clean:
-	rm -f *.a *.o test/*.o
-	rm -f zfec test_fec test_recovery gen_test_vec
+	rm -f *.so *.o test/*.o
+	rm -f $(PROGS)
