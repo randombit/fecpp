@@ -3,24 +3,30 @@ CC=g++
 WARNINGS= -Wall -Wextra
 CFLAGS=-O2 -g $(WARNINGS)
 
-all: libfecpp.a zfec test_recovery gen_test_vec
+all: benchmark zfec test_recovery gen_test_vec
 
-libfecpp.a: fecpp.o
-	ar crs libfecpp.a fecpp.o
+libfecpp.so: fecpp.o
+	$(CC) -shared -o $@ $<
 
-%.o: %.cpp fecpp.h
+fecpp.o: fecpp.cpp fecpp.h
+	$(CC) $(CFLAGS) -fPIC -I. -c $< -o $@
+
+test/%.o: test/%.cpp fecpp.h
 	$(CC) $(CFLAGS) -I. -c $< -o $@
 
-zfec: zfec.o libfecpp.a
+zfec: test/zfec.o libfecpp.so
 	$(CC) $(CFLAGS) $<  -L. -lfecpp -o $@
 
-test_fec: test/test_fec.o libfecpp.a
+benchmark: test/benchmark.o libfecpp.so
 	$(CC) $(CFLAGS) $<  -L. -lfecpp -o $@
 
-test_recovery: test/test_recovery.o libfecpp.a
+test_fec: test/test_fec.o libfecpp.so
+	$(CC) $(CFLAGS) $<  -L. -lfecpp -o $@
+
+test_recovery: test/test_recovery.o libfecpp.so
 	$(CC) $(CFLAGS) $< -L. -lfecpp -o $@
 
-gen_test_vec: test/gen_test_vec.o libfecpp.a
+gen_test_vec: test/gen_test_vec.o libfecpp.so
 	$(CC) $(CFLAGS) $< -L. -lfecpp -o $@
 
 clean:
