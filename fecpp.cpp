@@ -214,19 +214,52 @@ void addmul_k(byte dst[], byte* srcs[], const byte cs[],
 /*
 * invert_matrix() takes a matrix and produces its inverse k is the size
 * of the matrix.  (Gauss-Jordan, adapted from Numerical Recipes in C)
-* Return non-zero if singular.
 */
 void invert_matrix(byte *src, size_t k)
    {
    std::vector<int> indxc(k);
    std::vector<int> indxr(k);
-
-   /*
-   * ipiv marks elements already used as pivots.
-   */
-   std::vector<bool> ipiv(k);
-
    std::vector<byte> id_row(k);
+
+   class pivot_searcher
+      {
+      public:
+         pivot_searcher(size_t k) : ipiv(k) {}
+
+         std::pair<size_t, size_t> operator()(size_t col, const byte* src)
+            {
+            const size_t k = ipiv.size();
+
+            if(ipiv[col] == false && src[col*k + col] != 0)
+               {
+               ipiv[col] = true;
+               return std::make_pair(col, col);
+               }
+
+            for(size_t row = 0; row != k; ++row)
+               {
+               if(ipiv[row])
+                  continue;
+
+               for(size_t i = 0; i != k; ++i)
+                  {
+                  if(ipiv[i] == false && src[row*k + i] != 0)
+                     {
+                     ipiv[i] = true;
+                     return std::make_pair(row, i);
+                     }
+                  }
+               }
+
+            throw std::invalid_argument("pivot not found in invert_matrix");
+            }
+
+      private:
+         // Marks elements already used as pivots
+         std::vector<bool> ipiv;
+      };
+
+   pivot_searcher pivot_search(k);
 
    for(size_t col = 0; col != k; ++col)
       {
@@ -234,39 +267,11 @@ void invert_matrix(byte *src, size_t k)
       * Zeroing column 'col', look for a non-zero element.
       * First try on the diagonal, if it fails, look elsewhere.
       */
-      int irow = -1, icol = -1;
 
-      if(ipiv[col] == false && src[col*k + col] != 0)
-         {
-         irow = col;
-         icol = col;
-         goto found_piv;
-         }
+      std::pair<size_t, size_t> icolrow = pivot_search(col, src);
 
-      for(size_t row = 0; row != k; ++row)
-         {
-         if(ipiv[row] == false)
-            {
-            for(size_t i = 0; i != k; ++i)
-               {
-               if(ipiv[i] == false && src[row*k + i] != 0)
-                  {
-                  irow = row;
-                  icol = i;
-                  goto found_piv;
-                  }
-               }
-            }
-         }
-
-      if(icol == -1)
-         throw std::invalid_argument("pivot not found in invert_matrix");
-
-      found_piv:
-
-      if(ipiv[icol])
-         throw std::invalid_argument("singlar matrix");
-      ipiv[icol] = true;
+      size_t icol = icolrow.first;
+      size_t irow = icolrow.second;
 
       /*
       * swap rows irow and icol, so afterwards the diagonal
