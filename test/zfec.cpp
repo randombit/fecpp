@@ -106,11 +106,11 @@ void zfec_encode(size_t k, size_t n,
 
    fec_code fec(k, n);
 
-   std::vector<byte> buf(chunksize * fec.get_k());
+   std::vector<byte> buf(chunksize * k);
 
    size_t pad_bytes = (in_len % k == 0) ? 0 : k - (in_len % k);
 
-   zfec_file_writer file_writer(prefix, fec.get_n(), fec.get_k(), pad_bytes);
+   zfec_file_writer file_writer(prefix, n, k, pad_bytes);
 
    while(in.good())
       {

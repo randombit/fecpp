@@ -23,13 +23,13 @@ class fec_code
    public:
       /**
       * fec_code constructor
-      * @param k the number of shares needed for recovery
-      * @param n the number of shares generated
+      * @param K the number of shares needed for recovery
+      * @param N the number of shares generated
       */
-      fec_code(size_t k, size_t n);
+      fec_code(size_t K, size_t n);
 
-      size_t get_k() const { return k; }
-      size_t get_n() const { return n; }
+      size_t get_K() const { return K; }
+      size_t get_N() const { return N; }
 
       /**
       * @param input the data to FEC
@@ -52,7 +52,7 @@ class fec_code
          const;
 
    private:
-      size_t k, n;
+      size_t K, N;
       std::vector<byte> enc_matrix;
    };
 
