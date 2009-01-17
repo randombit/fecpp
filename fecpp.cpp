@@ -161,7 +161,7 @@ void init_fec()
 * The case c=0 is also optimized, whereas c=1 is not. These
 * calls are unfrequent in my typical apps so I did not bother.
 */
-void addmul(byte dst[], const byte src[], byte c, int sz)
+void addmul(byte dst[], const byte src[], byte c, size_t sz)
    {
    if(c == 0)
       return;
@@ -217,10 +217,6 @@ void addmul_k(byte dst[], byte* srcs[], const byte cs[],
 */
 void invert_matrix(byte *src, size_t k)
    {
-   std::vector<int> indxc(k);
-   std::vector<int> indxr(k);
-   std::vector<byte> id_row(k);
-
    class pivot_searcher
       {
       public:
@@ -260,6 +256,9 @@ void invert_matrix(byte *src, size_t k)
       };
 
    pivot_searcher pivot_search(k);
+   std::vector<size_t> indxc(k);
+   std::vector<size_t> indxr(k);
+   std::vector<byte> id_row(k);
 
    for(size_t col = 0; col != k; ++col)
       {
