@@ -328,24 +328,25 @@ void invert_matrix(byte *src, size_t k)
       id_row[icol] = 0;
       } /* done all columns */
 
-   for(int col = k-1; col >= 0; col--)
+   for(size_t i = 0; i != k; ++i)
       {
-      if(indxr[col] != indxc[col])
+      if(indxr[i] != indxc[i])
          {
          for(size_t row = 0; row != k; ++row)
-            std::swap(src[row*k + indxr[col]], src[row*k + indxc[col]]);
+            std::swap(src[row*k + indxr[i]], src[row*k + indxc[i]]);
          }
       }
    }
 
 /*
-* fast code for inverting a vandermonde matrix.
-* XXX NOTE: It assumes that the matrix is not singular and _IS_ a
-* vandermonde matrix. Only uses the second column of the matrix,
-* containing the p_i's.
+* Generate and invert a Vandermonde matrix.
 *
-* Algorithm borrowed from "Numerical recipes in C" -- sec.2.8, but
+* Only uses the second column of the matrix, containing the p_i's
+* (contents - 0, GF_EXP[0...n])
+*
+* Algorithm borrowed from "Numerical recipes in C", section 2.8, but
 * largely revised for my purposes.
+*
 * p = coefficients of the matrix (p_i)
 * q = values of the polynomial (known)
 */
@@ -431,7 +432,7 @@ fec_code::fec_code(size_t k_arg, size_t n_arg) :
    * k*k vandermonde matrix, multiply right the bottom n-k rows
    * by the inverse, and construct the identity matrix at the top.
    */
-   create_inverted_vdm(&tmp_m[0], k); /* much faster than invert_matrix */
+   create_inverted_vdm(&tmp_m[0], k);
 
    for(size_t i = k*k; i != tmp_m.size(); ++i)
       tmp_m[i] = GF_EXP[((i / k) * (i % k)) % 255];
