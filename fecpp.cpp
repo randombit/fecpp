@@ -206,39 +206,32 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
 
    const size_t blocks_16 = size - (size % 16);
 
-   const byte polynomial[16] = {
-      0x1D, 0x1D, 0x1D, 0x1D, 0x1D, 0x1D, 0x1D, 0x1D,
-      0x1D, 0x1D, 0x1D, 0x1D, 0x1D, 0x1D, 0x1D, 0x1D };
+   __m128i polynomial = _mm_set1_epi8(0x1D);
 
    for(size_t i = 0; i != blocks_16; i += 16)
       {
-      byte products[16] = { 0 };
+      __m128i product = _mm_setzero_si128();
 
-      byte x_is[16];
-      memcpy(x_is, x + i, 16);
+      __m128i x_i = _mm_loadu_si128((const __m128i*)(x + i));
+      __m128i z_i = _mm_loadu_si128((const __m128i*)(z + i));
 
       for(size_t j = 0; j != 8; ++j) // unroll?
          {
          // gpr compare, hardcode shift (y & 0x80, y & 0x40, ...)
          if((y >> j) & 1)
-            for(size_t k = 0; k != 16; ++k) // pxor
-               products[k] ^= x_is[k];
+            product = _mm_xor_si128(product, x_i);
 
-         byte mask[16] = { 0 };
-         for(size_t k = 0; k != 16; ++k) // maskovdqu
-            if(x_is[k] & 0x80)
-               mask[k] = polynomial[k];
+         byte mask_bytes[16] = { 0 };
+         _mm_maskmoveu_si128(polynomial, x_i, (char*)mask_bytes);
 
-         for(size_t k = 0; k != 16; ++k) // paddb
-            x_is[k] = x_is[k] + x_is[k];
-
-         for(size_t k = 0; k != 16; ++k) // pxor
-            x_is[k] ^= mask[k];
-
+         __m128i mask = _mm_loadu_si128((__m128i*)mask_bytes);
+         x_i = _mm_add_epi8(x_i, x_i);
+         x_i = _mm_xor_si128(x_i, mask);
          }
 
-      for(size_t k = 0; k != 16; ++k) // pxor
-         z[i+k] ^= products[k];
+      z_i = _mm_xor_si128(z_i, product);
+
+      _mm_storeu_si128((__m128i*)(z + i), z_i);
       }
 
    for(size_t i = blocks_16; i != size; ++i)
