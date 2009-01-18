@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
 
 using fecpp::byte;
 
@@ -73,6 +74,10 @@ class zfec_file_writer
             outname << i << '_' << n << ".fec";
 
             std::ofstream* out = new std::ofstream(outname.str().c_str());
+
+            if(!*out)
+               throw std::runtime_error("Failed to write " + outname.str());
+
             write_zfec_header(*out, n, k, pad_bytes, i);
             outputs.push_back(out);
             }
@@ -146,9 +151,16 @@ void zfec_encode(size_t k, size_t n,
 
 int main(int argc, char* argv[])
    {
-   int k = atoi(argv[1]);
-   int m = atoi(argv[2]);
+   if(argc != 4)
+      {
+      printf("Usage: %s file k m\n", argv[0]);
+      return 1;
+      }
 
-   std::ifstream in("tests.txt");
-   zfec_encode(k, m, "fecpp/tests.txt", in);
+   std::ifstream in(argv[1]);
+
+   int k = atoi(argv[2]);
+   int m = atoi(argv[3]);
+
+   zfec_encode(k, m, "fecpp/out", in);
    }
