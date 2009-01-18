@@ -192,34 +192,22 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
       *z ^= mul_y[*x];
 #else
 
-   /*
-   MASKMOVDQU - Stores selected bytes from the source operand (first
-   operand) into a 128-bit memory location. The mask operand (second
-   operand) selects which bytes from the source operand are written to
-   memory. The source and mask operands are XMM registers. The most
-   significant bit in each byte of the mask operand determines whether
-   the corresponding byte in the source operand is written to the
-   corresponding byte location in memory: 0 indicates no write and 1
-   indicates write.
-
-   */
-
    const size_t blocks_16 = size - (size % 16);
 
    __m128i polynomial = _mm_set1_epi8(0x1D);
 
    for(size_t i = 0; i != blocks_16; i += 16)
       {
-      __m128i product = _mm_setzero_si128();
-
       __m128i x_i = _mm_loadu_si128((const __m128i*)(x + i));
       __m128i z_i = _mm_loadu_si128((const __m128i*)(z + i));
+
+      byte mask_bytes[16];
 
       for(size_t j = 0; j != 8; ++j) // unroll?
          {
          // gpr compare, hardcode shift (y & 0x80, y & 0x40, ...)
          if((y >> j) & 1)
-            product = _mm_xor_si128(product, x_i);
+            z_i = _mm_xor_si128(z_i, x_i);
 
          byte mask_bytes[16] = { 0 };
          _mm_maskmoveu_si128(polynomial, x_i, (char*)mask_bytes);
@@ -229,27 +217,15 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
          x_i = _mm_xor_si128(x_i, mask);
          }
 
-      z_i = _mm_xor_si128(z_i, product);
-
       _mm_storeu_si128((__m128i*)(z + i), z_i);
       }
 
+#endif
+
    for(size_t i = blocks_16; i != size; ++i)
       {
-      byte product = 0;
-      byte x_i = x[i];
-
-      for(size_t j = 0; j != 8; ++j)
-         {
-         if((y >> j) & 1)
-            product ^= x_i;
-         bool high_set = (x_i & 0x80);
-         x_i <<= 1;
-         if(high_set)
-            x_i ^= 0x1D;
-         }
-
-      z[i] ^= product;
+      if(x[i])
+         z[i] ^= GF_EXP[GF_LOG[x[i]] + GF_LOG[y]];
       }
 
 #endif
