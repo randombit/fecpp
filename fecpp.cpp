@@ -12,6 +12,10 @@
 #include <vector>
 #include <cstring>
 
+#if defined(__SSE2__)
+  #include <xmmintrin.h>
+#endif
+
 namespace fecpp {
 
 namespace {
@@ -152,43 +156,108 @@ void init_fec()
    }
 
 /*
-* addmul() computes dst[] = dst[] + c * src[]
-* This is used often, so better optimize it! Currently the loop is
-* unrolled 16 times, a good value for 486 and pentium-class machines.
-* The case c=0 is also optimized, whereas c=1 is not. These
-* calls are unfrequent in my typical apps so I did not bother.
+* addmul() computes z[] = z[] + x * y[]
 */
-void addmul(byte dst[], const byte src[], byte c, size_t sz)
+void addmul(byte z[], const byte x[], byte y, size_t size)
    {
-   if(c == 0)
+   if(y == 0)
       return;
 
-   const byte* mul_c = GF_MUL_TABLE[c];
-   byte *lim = &dst[sz - 16 + 1];
+#if 0
+   const byte* mul_y = GF_MUL_TABLE[y];
+   byte *lim = &z[size - 16 + 1];
 
-   for(; dst < lim; dst += 16, src += 16)
+   for(; z < lim; z += 16, x += 16)
       {
-      dst[0] ^= mul_c[src[0]];
-      dst[1] ^= mul_c[src[1]];
-      dst[2] ^= mul_c[src[2]];
-      dst[3] ^= mul_c[src[3]];
-      dst[4] ^= mul_c[src[4]];
-      dst[5] ^= mul_c[src[5]];
-      dst[6] ^= mul_c[src[6]];
-      dst[7] ^= mul_c[src[7]];
-      dst[8] ^= mul_c[src[8]];
-      dst[9] ^= mul_c[src[9]];
-      dst[10] ^= mul_c[src[10]];
-      dst[11] ^= mul_c[src[11]];
-      dst[12] ^= mul_c[src[12]];
-      dst[13] ^= mul_c[src[13]];
-      dst[14] ^= mul_c[src[14]];
-      dst[15] ^= mul_c[src[15]];
+      z[0] ^= mul_y[x[0]];
+      z[1] ^= mul_y[x[1]];
+      z[2] ^= mul_y[x[2]];
+      z[3] ^= mul_y[x[3]];
+      z[4] ^= mul_y[x[4]];
+      z[5] ^= mul_y[x[5]];
+      z[6] ^= mul_y[x[6]];
+      z[7] ^= mul_y[x[7]];
+      z[8] ^= mul_y[x[8]];
+      z[9] ^= mul_y[x[9]];
+      z[10] ^= mul_y[x[10]];
+      z[11] ^= mul_y[x[11]];
+      z[12] ^= mul_y[x[12]];
+      z[13] ^= mul_y[x[13]];
+      z[14] ^= mul_y[x[14]];
+      z[15] ^= mul_y[x[15]];
       }
 
    lim += 16 - 1;
-   for(; dst < lim; dst++, src++)
-      *dst ^= mul_c[*src];
+   for(; z < lim; z++, x++)
+      *z ^= mul_y[*x];
+#else
+
+   /*
+   MASKMOVDQU - Stores selected bytes from the source operand (first
+   operand) into a 128-bit memory location. The mask operand (second
+   operand) selects which bytes from the source operand are written to
+   memory. The source and mask operands are XMM registers. The most
+   significant bit in each byte of the mask operand determines whether
+   the corresponding byte in the source operand is written to the
+   corresponding byte location in memory: 0 indicates no write and 1
+   indicates write.
+
+   */
+
+   const size_t blocks_16 = size - (size % 16);
+
+   byte polynomial[16];
+   memset(polynomial, 0x1D, 16);
+
+   for(size_t i = 0; i != blocks_16; i += 16)
+      {
+      byte products[16] = { 0 };
+
+      byte x_is[16];
+      memcpy(x_is, x + i, 16);
+
+      for(size_t j = 0; j != 8; ++j)
+         {
+         if((y >> j) & 1)
+            for(size_t k = 0; k != 16; ++k)
+               products[k] ^= x_is[k];
+
+         byte mask[16] = { 0 };
+         for(size_t k = 0; k != 16; ++k)
+            if(x_is[k] & 0x80)
+               mask[k] = polynomial[k];
+
+         for(size_t k = 0; k != 16; ++k)
+            x_is[k] <<= 1;
+
+         for(size_t k = 0; k != 16; ++k)
+            x_is[k] ^= mask[k];
+
+         }
+
+      for(size_t k = 0; k != 16; ++k)
+         z[i+k] ^= products[k];
+      }
+
+   for(size_t i = blocks_16; i != size; ++i)
+      {
+      byte product = 0;
+      byte x_i = x[i];
+
+      for(size_t j = 0; j != 8; ++j)
+         {
+         if((y >> j) & 1)
+            product ^= x_i;
+         bool high_set = (x_i & 0x80);
+         x_i <<= 1;
+         if(high_set)
+            x_i ^= 0x1D;
+         }
+
+      z[i] ^= product;
+      }
+
+#endif
    }
 
 /*
@@ -428,7 +497,7 @@ fec_code::fec_code(size_t K_arg, size_t N_arg) :
    */
    for(size_t row = K*K; row != N*K; row += K)
       {
-      for(size_t col = 0; col < K; col++)
+      for(size_t col = 0; col != K; ++col)
          {
          const byte* pa = &temp_matrix[row];
          const byte* pb = &temp_matrix[col];
@@ -558,7 +627,7 @@ void fec_code::decode(
       if(indexes[i] >= K)
          {
          std::vector<byte> buf(share_size);
-         for(size_t col = 0; col < K; col++)
+         for(size_t col = 0; col != K; ++col)
             addmul(&buf[0], sharesv[col], m_dec[i*K + col], share_size);
          output(i, K, &buf[0], share_size);
          }
