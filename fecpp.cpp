@@ -206,8 +206,9 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
 
    const size_t blocks_16 = size - (size % 16);
 
-   byte polynomial[16];
-   memset(polynomial, 0x1D, 16);
+   const byte polynomial[16] = {
+      0x1D, 0x1D, 0x1D, 0x1D, 0x1D, 0x1D, 0x1D, 0x1D,
+      0x1D, 0x1D, 0x1D, 0x1D, 0x1D, 0x1D, 0x1D, 0x1D };
 
    for(size_t i = 0; i != blocks_16; i += 16)
       {
@@ -216,26 +217,27 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
       byte x_is[16];
       memcpy(x_is, x + i, 16);
 
-      for(size_t j = 0; j != 8; ++j)
+      for(size_t j = 0; j != 8; ++j) // unroll?
          {
+         // gpr compare, hardcode shift (y & 0x80, y & 0x40, ...)
          if((y >> j) & 1)
-            for(size_t k = 0; k != 16; ++k)
+            for(size_t k = 0; k != 16; ++k) // pxor
                products[k] ^= x_is[k];
 
          byte mask[16] = { 0 };
-         for(size_t k = 0; k != 16; ++k)
+         for(size_t k = 0; k != 16; ++k) // maskovdqu
             if(x_is[k] & 0x80)
                mask[k] = polynomial[k];
 
-         for(size_t k = 0; k != 16; ++k)
-            x_is[k] <<= 1;
+         for(size_t k = 0; k != 16; ++k) // paddb
+            x_is[k] = x_is[k] + x_is[k];
 
-         for(size_t k = 0; k != 16; ++k)
+         for(size_t k = 0; k != 16; ++k) // pxor
             x_is[k] ^= mask[k];
 
          }
 
-      for(size_t k = 0; k != 16; ++k)
+      for(size_t k = 0; k != 16; ++k) // pxor
          z[i+k] ^= products[k];
       }
 
