@@ -1,7 +1,7 @@
 
 CC=g++
 WARNINGS= -Wall -Wextra
-CFLAGS=-O2 -g $(WARNINGS)
+CFLAGS=-O2 -march=pentium4 -g $(WARNINGS)
 
 PROGS = benchmark zfec test_recovery gen_test_vec
 
