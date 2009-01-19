@@ -203,7 +203,9 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
 
    const size_t blocks_64 = size - (size % 64);
 
-   __m128i polynomial = _mm_set1_epi8(0x1D);
+   const __m128i polynomial = _mm_set1_epi8(0x1D);
+   const __m128i high_bit_set_if_gt = _mm_set1_epi8(0x7F);
+   const __m128i zeros = _mm_set1_epi8(0);
 
    // unrolled out to cache line size
    for(size_t i = 0; i != blocks_64; i += 64)
@@ -222,8 +224,6 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
       _mm_prefetch(x + i + 64, _MM_HINT_T0);
       _mm_prefetch(z + i + 64, _MM_HINT_T0);
 
-      byte mask_bytes[16] = { 0 };
-
       for(size_t j = 0; j != 8; ++j)
          {
          if((y >> j) & 1)
@@ -234,31 +234,34 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
             z_4 = _mm_xor_si128(z_4, x_4);
             }
 
-         memset(mask_bytes, 0, 16);
-         _mm_maskmoveu_si128(polynomial, x_1, (char*)mask_bytes);
-         __m128i mask_1 = _mm_loadu_si128((__m128i*)mask_bytes);
+         __m128i mask_1 = _mm_subs_epu8(x_1, high_bit_set_if_gt);
+         mask_1 = _mm_cmpeq_epi8(mask_1, zeros);
+         mask_1 = _mm_andnot_si128(mask_1, polynomial);
 
-         memset(mask_bytes, 0, 16);
-         _mm_maskmoveu_si128(polynomial, x_2, (char*)mask_bytes);
-         __m128i mask_2 = _mm_loadu_si128((__m128i*)mask_bytes);
+         __m128i mask_2 = _mm_subs_epu8(x_2, high_bit_set_if_gt);
+         mask_2 = _mm_cmpeq_epi8(mask_2, zeros);
+         mask_2 = _mm_andnot_si128(mask_2, polynomial);
 
-         memset(mask_bytes, 0, 16);
-         _mm_maskmoveu_si128(polynomial, x_3, (char*)mask_bytes);
-         __m128i mask_3 = _mm_loadu_si128((__m128i*)mask_bytes);
+         __m128i mask_3 = _mm_subs_epu8(x_3, high_bit_set_if_gt);
+         mask_3 = _mm_cmpeq_epi8(mask_3, zeros);
+         mask_3 = _mm_andnot_si128(mask_3, polynomial);
 
-         memset(mask_bytes, 0, 16);
-         _mm_maskmoveu_si128(polynomial, x_4, (char*)mask_bytes);
-         __m128i mask_4 = _mm_loadu_si128((__m128i*)mask_bytes);
+         __m128i mask_4 = _mm_subs_epu8(x_4, high_bit_set_if_gt);
+         mask_4 = _mm_cmpeq_epi8(mask_4, zeros);
+         mask_4 = _mm_andnot_si128(mask_4, polynomial);
 
          x_1 = _mm_add_epi8(x_1, x_1);
-         x_2 = _mm_add_epi8(x_2, x_2);
-         x_3 = _mm_add_epi8(x_3, x_3);
-         x_4 = _mm_add_epi8(x_4, x_4);
-
          x_1 = _mm_xor_si128(x_1, mask_1);
+
+         x_2 = _mm_add_epi8(x_2, x_2);
          x_2 = _mm_xor_si128(x_2, mask_2);
+
+         x_3 = _mm_add_epi8(x_3, x_3);
          x_3 = _mm_xor_si128(x_3, mask_3);
+
+         x_4 = _mm_add_epi8(x_4, x_4);
          x_4 = _mm_xor_si128(x_4, mask_4);
+
          }
 
       _mm_stream_si128((__m128i*)(z + i     ), z_1);
