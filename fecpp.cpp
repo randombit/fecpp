@@ -211,21 +211,21 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
    // unrolled out to cache line size
    for(size_t i = 0; i != blocks_64; i += 64)
       {
-      __m128i x_1 = _mm_loadu_si128((const __m128i*)(x + i));
-      __m128i x_2 = _mm_loadu_si128((const __m128i*)(x + i + 16));
-      __m128i x_3 = _mm_loadu_si128((const __m128i*)(x + i + 32));
-      __m128i x_4 = _mm_loadu_si128((const __m128i*)(x + i + 48));
+      __m128i x_1 = _mm_loadu_si128((const __m128i*)(x));
+      __m128i x_2 = _mm_loadu_si128((const __m128i*)(x + 16));
+      __m128i x_3 = _mm_loadu_si128((const __m128i*)(x + 32));
+      __m128i x_4 = _mm_loadu_si128((const __m128i*)(x + 48));
 
-      __m128i z_1 = _mm_load_si128((const __m128i*)(z + i));
-      __m128i z_2 = _mm_load_si128((const __m128i*)(z + i + 16));
-      __m128i z_3 = _mm_load_si128((const __m128i*)(z + i + 32));
-      __m128i z_4 = _mm_load_si128((const __m128i*)(z + i + 48));
+      __m128i z_1 = _mm_load_si128((const __m128i*)(z));
+      __m128i z_2 = _mm_load_si128((const __m128i*)(z + 16));
+      __m128i z_3 = _mm_load_si128((const __m128i*)(z + 32));
+      __m128i z_4 = _mm_load_si128((const __m128i*)(z + 48));
 
       // prefetch next two x and z blocks
-      _mm_prefetch(x + i + 64, _MM_HINT_T0);
-      _mm_prefetch(z + i + 64, _MM_HINT_T0);
-      _mm_prefetch(x + i + 128, _MM_HINT_T1);
-      _mm_prefetch(z + i + 128, _MM_HINT_T1);
+      _mm_prefetch(x + 64, _MM_HINT_T0);
+      _mm_prefetch(z + 64, _MM_HINT_T0);
+      _mm_prefetch(x + 128, _MM_HINT_T1);
+      _mm_prefetch(z + 128, _MM_HINT_T1);
 
       if(y & 0x01)
          {
@@ -235,7 +235,6 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
          z_4 = _mm_xor_si128(z_4, x_4);
          }
 
-      // Classic double and add multiplication
       for(size_t j = 1; j != y_bits; ++j)
          {
          /*
@@ -248,15 +247,15 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
          __m128i mask_3 = _mm_cmpgt_epi8(all_zeros, x_3);
          __m128i mask_4 = _mm_cmpgt_epi8(all_zeros, x_4);
 
-         mask_1 = _mm_and_si128(mask_1, polynomial);
-         mask_2 = _mm_and_si128(mask_2, polynomial);
-         mask_3 = _mm_and_si128(mask_3, polynomial);
-         mask_4 = _mm_and_si128(mask_4, polynomial);
-
          x_1 = _mm_add_epi8(x_1, x_1);
          x_2 = _mm_add_epi8(x_2, x_2);
          x_3 = _mm_add_epi8(x_3, x_3);
          x_4 = _mm_add_epi8(x_4, x_4);
+
+         mask_1 = _mm_and_si128(mask_1, polynomial);
+         mask_2 = _mm_and_si128(mask_2, polynomial);
+         mask_3 = _mm_and_si128(mask_3, polynomial);
+         mask_4 = _mm_and_si128(mask_4, polynomial);
 
          x_1 = _mm_xor_si128(x_1, mask_1);
          x_2 = _mm_xor_si128(x_2, mask_2);
@@ -272,13 +271,16 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
             }
          }
 
-      _mm_store_si128((__m128i*)(z + i     ), z_1);
-      _mm_store_si128((__m128i*)(z + i + 16), z_2);
-      _mm_store_si128((__m128i*)(z + i + 32), z_3);
-      _mm_store_si128((__m128i*)(z + i + 48), z_4);
+      _mm_store_si128((__m128i*)(z     ), z_1);
+      _mm_store_si128((__m128i*)(z + 16), z_2);
+      _mm_store_si128((__m128i*)(z + 32), z_3);
+      _mm_store_si128((__m128i*)(z + 48), z_4);
+
+      x += 64;
+      z += 64;
       }
 
-   for(size_t i = blocks_64; i != size; ++i)
+   for(size_t i = 0; i != size - blocks_64; ++i)
       {
       z[i] ^= GF_MUL_Y[x[i]];
       }
