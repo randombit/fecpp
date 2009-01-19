@@ -1,7 +1,7 @@
 /*
  * Forward error correction based on Vandermonde matrices
  *
- * (C) 1997-98 Luigi Rizzo (luigi@iet.unipi.it)
+ * (C) 1997-1998 Luigi Rizzo (luigi@iet.unipi.it)
  * (C) 2009 Jack Lloyd (lloyd@randombit.net)
  *
  * Distributed under the terms given in license.txt
