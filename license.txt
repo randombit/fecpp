@@ -1,4 +1,4 @@
-(C) 1997-98 Luigi Rizzo (luigi@iet.unipi.it)
+(C) 1996-1998 Luigi Rizzo (luigi@iet.unipi.it)
 (C) 2009 Jack Lloyd (lloyd@randombit.net)
 
 Portions derived from code by Phil Karn (karn@ka9q.ampr.org),
