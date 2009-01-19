@@ -573,18 +573,9 @@ void fec_code::encode(
    for(size_t i = 0; i != fec_buf.size(); ++i)
       fec_buf[i].resize(block_size);
 
-   /*
-   for(size_t i = 0; i != K; ++i)
-      {
-      for(size_t j = K; j != N; ++j)
-         addmul(&fec_buf[j-K][0], input + i*block_size,
-                enc_matrix[j*K+i], block_size);
-      }
-   */
-
    size_t stride = block_size;
 
-   while(stride > 16*1024)
+   while(stride % 2 == 0 && stride > 64*1024)
       stride >>= 1;
 
    for(size_t i = 0; i != size; i += stride)
