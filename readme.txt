@@ -1,18 +1,18 @@
 
---------    Erasure codes based on Vandermonde matrices    ---------
---------  (C) 1996-1998  Luigi Rizzo (luigi@iet.unipi.it)  ---------
---------     (C) 2009 Jack Lloyd (lloyd@randombit.net)     ---------
+FECpp 0.8, 2009-01-19
+Erasure codes based on Vandermonde matrices
 
+(C) 1996-1998 Luigi Rizzo (luigi@iet.unipi.it)
+(C) 2009 Jack Lloyd (lloyd@randombit.net)
 See license.txt for other contributors.
 
-fecpp.cpp contains an implementation of an encoder/decoder for an
-erasure code based on Vandermonde matrices computed over GF(2^8).
+FECpp contains an implementation of an encoder/decoder for an erasure
+code based on Vandermonde matrices computed over GF(2^8). It is based
+on fec, by Luigi Rizzo, which is available at
+  http://info.iet.unipi.it/~luigi/fec.html
 
-The original version of fec by Luigi Rizzo, which the library is based
-on, is available from http://info.iet.unipi.it/~luigi/fec.html
-
-This version, which had been modified to use C++ and SSE2 operations,
-is by Jack Lloyd.
+FECpp should be compatible with zfec (http://allmydata.org/trac/zfec),
+producing bitwise identical results in all cases.
 
 PRINCIPLE OF OPERATION
 
@@ -100,4 +100,4 @@ FUTURE WORK
 - Use threads or OpenMP
 - Investigate loop tiling and other matrix multiplication optimizations
 - Use a sliding window for the SSE2 multiplication
-- Add implementations for AltiVec or the Cell SPU
+- Add more SIMD implementations, for instance AltiVec or the Cell SPU
