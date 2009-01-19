@@ -193,7 +193,7 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
       *z ^= GF_MUL_Y[*x];
 #else
 
-   while(size && (uintptr_t)z % 64) // align z to 64 bytes
+   while(size && (uintptr_t)z % 16) // align z to 16 bytes
       {
       if(x[0])
          z[0] ^= GF_MUL_Y[x[0]];
@@ -225,9 +225,11 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
 
       __m128i mask_1, mask_2, mask_3, mask_4;
 
-      // prefetch next x and z blocks
+      // prefetch next two x and z blocks
       _mm_prefetch(x + i + 64, _MM_HINT_T0);
       _mm_prefetch(z + i + 64, _MM_HINT_T0);
+      _mm_prefetch(x + i + 128, _MM_HINT_T1);
+      _mm_prefetch(z + i + 128, _MM_HINT_T1);
 
       if(y & 0x01)
          {
@@ -563,7 +565,7 @@ void fec_code::encode(
    for(size_t i = 0; i != K; ++i)
       output(i, N, input + i*block_size, block_size);
 
-#if 0
+#if 1
    for(size_t i = 0; i != K; ++i)
       output(i, N, input + i*block_size, block_size);
 
@@ -585,13 +587,27 @@ void fec_code::encode(
    for(size_t i = 0; i != fec_buf.size(); ++i)
       fec_buf[i].resize(block_size);
 
+#if 1
    for(size_t i = 0; i != K; ++i)
       {
-#pragma omp parallel
       for(size_t j = K; j != N; ++j)
          addmul(&fec_buf[j-K][0], input + i*block_size,
                 enc_matrix[j*K+i], block_size);
       }
+#else
+
+   size_t stride = block_size;
+
+   while(stride > 16*1024)
+      stride >>= 1;
+
+   for(size_t i = 0; i != size; i += stride)
+      {
+      for(size_t j = K; j != N; ++j)
+         addmul(&fec_buf[j-K][0], input + i,
+                enc_matrix[j*K+i/block_size], stride);
+      }
+#endif
 
    for(size_t i = 0; i != fec_buf.size(); ++i)
       output(i+K, N, &fec_buf[i][0], fec_buf[i].size());
