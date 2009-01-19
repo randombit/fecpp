@@ -165,10 +165,17 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
 
    const byte* GF_MUL_Y = GF_MUL_TABLE[y];
 
-#if 0
-   byte *lim = &z[size - 16 + 1];
+   while(size && (uintptr_t)z % 16) // first align z to 16 bytes
+      {
+      z[0] ^= GF_MUL_Y[x[0]];
+      ++z;
+      ++x;
+      size--;
+      }
 
-   for(; z < lim; z += 16, x += 16)
+#if !defined(__SSE2__)
+
+   while(size >= 16)
       {
       z[0] ^= GF_MUL_Y[x[0]];
       z[1] ^= GF_MUL_Y[x[1]];
@@ -186,22 +193,13 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
       z[13] ^= GF_MUL_Y[x[13]];
       z[14] ^= GF_MUL_Y[x[14]];
       z[15] ^= GF_MUL_Y[x[15]];
+
+      x += 16;
+      z += 16;
+      size -= 16;
       }
 
-   lim += 16 - 1;
-   for(; z < lim; z++, x++)
-      *z ^= GF_MUL_Y[*x];
 #else
-
-   while(size && (uintptr_t)z % 16) // align z to 16 bytes
-      {
-      z[0] ^= GF_MUL_Y[x[0]];
-      ++z;
-      ++x;
-      size--;
-      }
-
-   const size_t blocks_64 = size - (size % 64);
 
    const __m128i polynomial = _mm_set1_epi8(0x1D);
    const __m128i all_zeros = _mm_setzero_si128();
@@ -209,7 +207,7 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
    const size_t y_bits = 32 - __builtin_clz(y);
 
    // unrolled out to cache line size
-   for(size_t i = 0; i != blocks_64; i += 64)
+   while(size >= 64)
       {
       __m128i x_1 = _mm_loadu_si128((const __m128i*)(x));
       __m128i x_2 = _mm_loadu_si128((const __m128i*)(x + 16));
@@ -278,14 +276,14 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
 
       x += 64;
       z += 64;
-      }
-
-   for(size_t i = 0; i != size - blocks_64; ++i)
-      {
-      z[i] ^= GF_MUL_Y[x[i]];
+      size -= 64;
       }
 
 #endif
+
+   // Clean up the trailing pieces
+   for(size_t i = 0; i != size; ++i)
+      z[i] ^= GF_MUL_Y[x[i]];
    }
 
 /*
