@@ -165,6 +165,8 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
 
    const byte* GF_MUL_Y = GF_MUL_TABLE[y];
 
+#if defined(__SSE2__)
+
    while(size && (uintptr_t)z % 16) // first align z to 16 bytes
       {
       z[0] ^= GF_MUL_Y[x[0]];
@@ -172,34 +174,6 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
       ++x;
       size--;
       }
-
-#if !defined(__SSE2__)
-
-   while(size >= 16)
-      {
-      z[0] ^= GF_MUL_Y[x[0]];
-      z[1] ^= GF_MUL_Y[x[1]];
-      z[2] ^= GF_MUL_Y[x[2]];
-      z[3] ^= GF_MUL_Y[x[3]];
-      z[4] ^= GF_MUL_Y[x[4]];
-      z[5] ^= GF_MUL_Y[x[5]];
-      z[6] ^= GF_MUL_Y[x[6]];
-      z[7] ^= GF_MUL_Y[x[7]];
-      z[8] ^= GF_MUL_Y[x[8]];
-      z[9] ^= GF_MUL_Y[x[9]];
-      z[10] ^= GF_MUL_Y[x[10]];
-      z[11] ^= GF_MUL_Y[x[11]];
-      z[12] ^= GF_MUL_Y[x[12]];
-      z[13] ^= GF_MUL_Y[x[13]];
-      z[14] ^= GF_MUL_Y[x[14]];
-      z[15] ^= GF_MUL_Y[x[15]];
-
-      x += 16;
-      z += 16;
-      size -= 16;
-      }
-
-#else
 
    const __m128i polynomial = _mm_set1_epi8(0x1D);
    const __m128i all_zeros = _mm_setzero_si128();
@@ -277,6 +251,32 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
       x += 64;
       z += 64;
       size -= 64;
+      }
+
+#else
+
+   while(size >= 16)
+      {
+      z[0] ^= GF_MUL_Y[x[0]];
+      z[1] ^= GF_MUL_Y[x[1]];
+      z[2] ^= GF_MUL_Y[x[2]];
+      z[3] ^= GF_MUL_Y[x[3]];
+      z[4] ^= GF_MUL_Y[x[4]];
+      z[5] ^= GF_MUL_Y[x[5]];
+      z[6] ^= GF_MUL_Y[x[6]];
+      z[7] ^= GF_MUL_Y[x[7]];
+      z[8] ^= GF_MUL_Y[x[8]];
+      z[9] ^= GF_MUL_Y[x[9]];
+      z[10] ^= GF_MUL_Y[x[10]];
+      z[11] ^= GF_MUL_Y[x[11]];
+      z[12] ^= GF_MUL_Y[x[12]];
+      z[13] ^= GF_MUL_Y[x[13]];
+      z[14] ^= GF_MUL_Y[x[14]];
+      z[15] ^= GF_MUL_Y[x[15]];
+
+      x += 16;
+      z += 16;
+      size -= 16;
       }
 
 #endif
