@@ -563,26 +563,39 @@ void fec_code::encode(
    for(size_t i = 0; i != K; ++i)
       output(i, N, input + i*block_size, block_size);
 
+#if 0
+   for(size_t i = 0; i != K; ++i)
+      output(i, N, input + i*block_size, block_size);
+
    for(size_t i = K; i != N; ++i)
       {
       std::vector<byte> fec_buf(block_size);
 
       for(size_t j = 0; j != K; ++j)
-
-#if 1
          addmul(&fec_buf[0], input + j*block_size,
                 enc_matrix[i*K+j], block_size);
-#else
-         {
-         const byte* mul_c = GF_MUL_TABLE[enc_matrix[i*K+j]];
-
-         for(size_t k = 0; k != block_size; ++k)
-            fec_buf[k] ^= mul_c[input[j*block_size + k]];
-         }
-#endif
 
       output(i, N, &fec_buf[0], fec_buf.size());
       }
+
+#else
+   // align??
+   std::vector<std::vector<byte> > fec_buf(N - K);
+
+   for(size_t i = 0; i != fec_buf.size(); ++i)
+      fec_buf[i].resize(block_size);
+
+   for(size_t i = 0; i != K; ++i)
+      {
+#pragma omp parallel
+      for(size_t j = K; j != N; ++j)
+         addmul(&fec_buf[j-K][0], input + i*block_size,
+                enc_matrix[j*K+i], block_size);
+      }
+
+   for(size_t i = 0; i != fec_buf.size(); ++i)
+      output(i+K, N, &fec_buf[i][0], fec_buf[i].size());
+#endif
    }
 
 /*
