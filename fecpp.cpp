@@ -195,8 +195,7 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
 
    while(size && (uintptr_t)z % 16) // align z to 16 bytes
       {
-      if(x[0])
-         z[0] ^= GF_MUL_Y[x[0]];
+      z[0] ^= GF_MUL_Y[x[0]];
       ++z;
       ++x;
       size--;
@@ -205,8 +204,7 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
    const size_t blocks_64 = size - (size % 64);
 
    const __m128i polynomial = _mm_set1_epi8(0x1D);
-   const __m128i high_bit_set_if_gt = _mm_set1_epi8(0x7F);
-   const __m128i all_ones = _mm_set1_epi8(0xFF);
+   const __m128i all_zeros = _mm_setzero_si128();
 
    const size_t y_bits = 32 - __builtin_clz(y);
 
@@ -222,8 +220,6 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
       __m128i z_2 = _mm_load_si128((const __m128i*)(z + i + 16));
       __m128i z_3 = _mm_load_si128((const __m128i*)(z + i + 32));
       __m128i z_4 = _mm_load_si128((const __m128i*)(z + i + 48));
-
-      __m128i mask_1, mask_2, mask_3, mask_4;
 
       // prefetch next two x and z blocks
       _mm_prefetch(x + i + 64, _MM_HINT_T0);
@@ -246,32 +242,25 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
          * Each byte of each mask is either 0 or the polynomial 0x1D,
          * depending on if the high bit of x_i is set or not.
          */
-         mask_1 = _mm_adds_epu8(x_1, high_bit_set_if_gt);
-         mask_1 = _mm_cmpeq_epi8(mask_1, all_ones);
+
+         __m128i mask_1 = _mm_cmpgt_epi8(all_zeros, x_1);
+         __m128i mask_2 = _mm_cmpgt_epi8(all_zeros, x_2);
+         __m128i mask_3 = _mm_cmpgt_epi8(all_zeros, x_3);
+         __m128i mask_4 = _mm_cmpgt_epi8(all_zeros, x_4);
+
          mask_1 = _mm_and_si128(mask_1, polynomial);
-
-         mask_2 = _mm_adds_epu8(x_2, high_bit_set_if_gt);
-         mask_2 = _mm_cmpeq_epi8(mask_2, all_ones);
          mask_2 = _mm_and_si128(mask_2, polynomial);
-
-         mask_3 = _mm_adds_epu8(x_3, high_bit_set_if_gt);
-         mask_3 = _mm_cmpeq_epi8(mask_3, all_ones);
          mask_3 = _mm_and_si128(mask_3, polynomial);
-
-         mask_4 = _mm_adds_epu8(x_4, high_bit_set_if_gt);
-         mask_4 = _mm_cmpeq_epi8(mask_4, all_ones);
          mask_4 = _mm_and_si128(mask_4, polynomial);
 
          x_1 = _mm_add_epi8(x_1, x_1);
-         x_1 = _mm_xor_si128(x_1, mask_1);
-
          x_2 = _mm_add_epi8(x_2, x_2);
-         x_2 = _mm_xor_si128(x_2, mask_2);
-
          x_3 = _mm_add_epi8(x_3, x_3);
-         x_3 = _mm_xor_si128(x_3, mask_3);
-
          x_4 = _mm_add_epi8(x_4, x_4);
+
+         x_1 = _mm_xor_si128(x_1, mask_1);
+         x_2 = _mm_xor_si128(x_2, mask_2);
+         x_3 = _mm_xor_si128(x_3, mask_3);
          x_4 = _mm_xor_si128(x_4, mask_4);
 
          if((y >> j) & 1)
@@ -291,8 +280,7 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
 
    for(size_t i = blocks_64; i != size; ++i)
       {
-      if(x[i])
-         z[i] ^= GF_MUL_Y[x[i]];
+      z[i] ^= GF_MUL_Y[x[i]];
       }
 
 #endif
@@ -577,22 +565,22 @@ void fec_code::encode(
 
       output(i, N, &fec_buf[0], fec_buf.size());
       }
-
 #else
+
    // align??
    std::vector<std::vector<byte> > fec_buf(N - K);
 
    for(size_t i = 0; i != fec_buf.size(); ++i)
       fec_buf[i].resize(block_size);
 
-#if 1
+   /*
    for(size_t i = 0; i != K; ++i)
       {
       for(size_t j = K; j != N; ++j)
          addmul(&fec_buf[j-K][0], input + i*block_size,
                 enc_matrix[j*K+i], block_size);
       }
-#else
+   */
 
    size_t stride = block_size;
 
@@ -605,7 +593,6 @@ void fec_code::encode(
          addmul(&fec_buf[j-K][0], input + i,
                 enc_matrix[j*K+i/block_size], stride);
       }
-#endif
 
    for(size_t i = 0; i != fec_buf.size(); ++i)
       output(i+K, N, &fec_buf[i][0], fec_buf[i].size());
