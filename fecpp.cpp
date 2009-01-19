@@ -283,13 +283,11 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
             }
          }
 
-      _mm_stream_si128((__m128i*)(z + i     ), z_1);
-      _mm_stream_si128((__m128i*)(z + i + 16), z_2);
-      _mm_stream_si128((__m128i*)(z + i + 32), z_3);
-      _mm_stream_si128((__m128i*)(z + i + 48), z_4);
+      _mm_store_si128((__m128i*)(z + i     ), z_1);
+      _mm_store_si128((__m128i*)(z + i + 16), z_2);
+      _mm_store_si128((__m128i*)(z + i + 32), z_3);
+      _mm_store_si128((__m128i*)(z + i + 48), z_4);
       }
-
-   _mm_mfence(); // fence streaming writes
 
    for(size_t i = blocks_64; i != size; ++i)
       {
