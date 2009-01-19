@@ -132,7 +132,7 @@ bool check_recovery(byte k, byte n, const std::string& hex_input,
    for(size_t i = 0; i != hex_packets.size(); ++i)
       packets.push_back(decode_hex(hex_packets[i]));
 
-   printf("%d, %d\n", k, n);
+   //printf("%d, %d\n", k, n);
    fecpp::fec_code code(k, n);
 
    std::map<size_t, const byte*> packets_map;
