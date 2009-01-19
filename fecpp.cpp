@@ -163,39 +163,40 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
    if(y == 0)
       return;
 
+   const byte* GF_MUL_Y = GF_MUL_TABLE[y];
+
 #if 0
-   const byte* mul_y = GF_MUL_TABLE[y];
    byte *lim = &z[size - 16 + 1];
 
    for(; z < lim; z += 16, x += 16)
       {
-      z[0] ^= mul_y[x[0]];
-      z[1] ^= mul_y[x[1]];
-      z[2] ^= mul_y[x[2]];
-      z[3] ^= mul_y[x[3]];
-      z[4] ^= mul_y[x[4]];
-      z[5] ^= mul_y[x[5]];
-      z[6] ^= mul_y[x[6]];
-      z[7] ^= mul_y[x[7]];
-      z[8] ^= mul_y[x[8]];
-      z[9] ^= mul_y[x[9]];
-      z[10] ^= mul_y[x[10]];
-      z[11] ^= mul_y[x[11]];
-      z[12] ^= mul_y[x[12]];
-      z[13] ^= mul_y[x[13]];
-      z[14] ^= mul_y[x[14]];
-      z[15] ^= mul_y[x[15]];
+      z[0] ^= GF_MUL_Y[x[0]];
+      z[1] ^= GF_MUL_Y[x[1]];
+      z[2] ^= GF_MUL_Y[x[2]];
+      z[3] ^= GF_MUL_Y[x[3]];
+      z[4] ^= GF_MUL_Y[x[4]];
+      z[5] ^= GF_MUL_Y[x[5]];
+      z[6] ^= GF_MUL_Y[x[6]];
+      z[7] ^= GF_MUL_Y[x[7]];
+      z[8] ^= GF_MUL_Y[x[8]];
+      z[9] ^= GF_MUL_Y[x[9]];
+      z[10] ^= GF_MUL_Y[x[10]];
+      z[11] ^= GF_MUL_Y[x[11]];
+      z[12] ^= GF_MUL_Y[x[12]];
+      z[13] ^= GF_MUL_Y[x[13]];
+      z[14] ^= GF_MUL_Y[x[14]];
+      z[15] ^= GF_MUL_Y[x[15]];
       }
 
    lim += 16 - 1;
    for(; z < lim; z++, x++)
-      *z ^= mul_y[*x];
+      *z ^= GF_MUL_Y[*x];
 #else
 
    while(size && (uintptr_t)z % 64) // align z to 64 bytes
       {
       if(x[0])
-         z[0] ^= GF_EXP[GF_LOG[x[0]] + GF_LOG[y]];
+         z[0] ^= GF_MUL_Y[x[0]];
       ++z;
       ++x;
       size--;
@@ -205,7 +206,9 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
 
    const __m128i polynomial = _mm_set1_epi8(0x1D);
    const __m128i high_bit_set_if_gt = _mm_set1_epi8(0x7F);
-   const __m128i zeros = _mm_set1_epi8(0);
+   const __m128i all_ones = _mm_set1_epi8(0xFF);
+
+   const size_t y_bits = 32 - __builtin_clz(y);
 
    // unrolled out to cache line size
    for(size_t i = 0; i != blocks_64; i += 64)
@@ -220,35 +223,42 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
       __m128i z_3 = _mm_load_si128((const __m128i*)(z + i + 32));
       __m128i z_4 = _mm_load_si128((const __m128i*)(z + i + 48));
 
+      __m128i mask_1, mask_2, mask_3, mask_4;
+
       // prefetch next x and z blocks
       _mm_prefetch(x + i + 64, _MM_HINT_T0);
       _mm_prefetch(z + i + 64, _MM_HINT_T0);
 
-      for(size_t j = 0; j != 8; ++j)
+      if(y & 0x01)
          {
-         if((y >> j) & 1)
-            {
-            z_1 = _mm_xor_si128(z_1, x_1);
-            z_2 = _mm_xor_si128(z_2, x_2);
-            z_3 = _mm_xor_si128(z_3, x_3);
-            z_4 = _mm_xor_si128(z_4, x_4);
-            }
+         z_1 = _mm_xor_si128(z_1, x_1);
+         z_2 = _mm_xor_si128(z_2, x_2);
+         z_3 = _mm_xor_si128(z_3, x_3);
+         z_4 = _mm_xor_si128(z_4, x_4);
+         }
 
-         __m128i mask_1 = _mm_subs_epu8(x_1, high_bit_set_if_gt);
-         mask_1 = _mm_cmpeq_epi8(mask_1, zeros);
-         mask_1 = _mm_andnot_si128(mask_1, polynomial);
+      // Classic double and add multiplication
+      for(size_t j = 1; j != y_bits; ++j)
+         {
+         /*
+         * Each byte of each mask is either 0 or the polynomial 0x1D,
+         * depending on if the high bit of x_i is set or not.
+         */
+         mask_1 = _mm_adds_epu8(x_1, high_bit_set_if_gt);
+         mask_1 = _mm_cmpeq_epi8(mask_1, all_ones);
+         mask_1 = _mm_and_si128(mask_1, polynomial);
 
-         __m128i mask_2 = _mm_subs_epu8(x_2, high_bit_set_if_gt);
-         mask_2 = _mm_cmpeq_epi8(mask_2, zeros);
-         mask_2 = _mm_andnot_si128(mask_2, polynomial);
+         mask_2 = _mm_adds_epu8(x_2, high_bit_set_if_gt);
+         mask_2 = _mm_cmpeq_epi8(mask_2, all_ones);
+         mask_2 = _mm_and_si128(mask_2, polynomial);
 
-         __m128i mask_3 = _mm_subs_epu8(x_3, high_bit_set_if_gt);
-         mask_3 = _mm_cmpeq_epi8(mask_3, zeros);
-         mask_3 = _mm_andnot_si128(mask_3, polynomial);
+         mask_3 = _mm_adds_epu8(x_3, high_bit_set_if_gt);
+         mask_3 = _mm_cmpeq_epi8(mask_3, all_ones);
+         mask_3 = _mm_and_si128(mask_3, polynomial);
 
-         __m128i mask_4 = _mm_subs_epu8(x_4, high_bit_set_if_gt);
-         mask_4 = _mm_cmpeq_epi8(mask_4, zeros);
-         mask_4 = _mm_andnot_si128(mask_4, polynomial);
+         mask_4 = _mm_adds_epu8(x_4, high_bit_set_if_gt);
+         mask_4 = _mm_cmpeq_epi8(mask_4, all_ones);
+         mask_4 = _mm_and_si128(mask_4, polynomial);
 
          x_1 = _mm_add_epi8(x_1, x_1);
          x_1 = _mm_xor_si128(x_1, mask_1);
@@ -262,6 +272,13 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
          x_4 = _mm_add_epi8(x_4, x_4);
          x_4 = _mm_xor_si128(x_4, mask_4);
 
+         if((y >> j) & 1)
+            {
+            z_1 = _mm_xor_si128(z_1, x_1);
+            z_2 = _mm_xor_si128(z_2, x_2);
+            z_3 = _mm_xor_si128(z_3, x_3);
+            z_4 = _mm_xor_si128(z_4, x_4);
+            }
          }
 
       _mm_stream_si128((__m128i*)(z + i     ), z_1);
@@ -270,10 +287,12 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
       _mm_stream_si128((__m128i*)(z + i + 48), z_4);
       }
 
+   _mm_mfence(); // fence streaming writes
+
    for(size_t i = blocks_64; i != size; ++i)
       {
       if(x[i])
-         z[i] ^= GF_EXP[GF_LOG[x[i]] + GF_LOG[y]];
+         z[i] ^= GF_MUL_Y[x[i]];
       }
 
 #endif
