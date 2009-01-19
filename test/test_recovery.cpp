@@ -107,7 +107,7 @@ class output_checker
             if(inb != buf[i])
                {
                printf("Bad: block=%d/%d i=%d in=%02X buf=%02X\n",
-                      block, max_blocks, i, inb, buf[i]);
+                      (int)block, (int)max_blocks, (int)i, inb, buf[i]);
                }
             out[block*size+i] = buf[i];
             }
@@ -116,7 +116,7 @@ class output_checker
       void confirm()
          {
          if(in != out)
-            printf("Mismatch in final check! %d %d\n", in.size(), out.size());
+            printf("Mismatch in final check!\n");
          }
    private:
       std::string in;

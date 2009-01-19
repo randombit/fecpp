@@ -9,7 +9,7 @@ namespace {
 class output_checker
    {
    public:
-      void operator()(size_t block, size_t max_blocks,
+      void operator()(size_t block, size_t /*max_blocks*/,
                       const byte buf[], size_t size)
          {
          for(size_t i = 0; i != size; ++i)
@@ -17,7 +17,7 @@ class output_checker
             byte expected = block*size + i;
             if(buf[i] != expected)
                printf("block=%d i=%d got=%02X expected=%02X\n",
-                      block, i, buf[i], expected);
+                      (int)block, (int)i, buf[i], expected);
 
             }
          }

@@ -8,7 +8,7 @@ using fecpp::byte;
 void print_block(size_t block_no, size_t n,
                  const byte share[], size_t share_len)
    {
-   printf("block_%d=", block_no);
+   printf("block_%d=", (int)block_no);
    for(size_t j = 0; j != share_len; ++j)
       printf("%02X", share[j]);
    if(block_no != n - 1)
