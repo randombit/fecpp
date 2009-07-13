@@ -186,7 +186,6 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
       }
 
    const __m128i polynomial = _mm_set1_epi8(0x1D);
-   const __m128i all_zeros = _mm_setzero_si128();
 
    const size_t y_bits = 32 - __builtin_clz(y);
 
@@ -224,10 +223,16 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
          * depending on if the high bit of x_i is set or not.
          */
 
-         __m128i mask_1 = _mm_cmpgt_epi8(all_zeros, x_1);
-         __m128i mask_2 = _mm_cmpgt_epi8(all_zeros, x_2);
-         __m128i mask_3 = _mm_cmpgt_epi8(all_zeros, x_3);
-         __m128i mask_4 = _mm_cmpgt_epi8(all_zeros, x_4);
+         __m128i mask_1 = _mm_setzero_si128();
+         __m128i mask_2 = _mm_setzero_si128();
+         __m128i mask_3 = _mm_setzero_si128();
+         __m128i mask_4 = _mm_setzero_si128();
+
+         // flip operation?
+         mask_1 = _mm_cmpgt_epi8(mask_1, x_1);
+         mask_2 = _mm_cmpgt_epi8(mask_2, x_2);
+         mask_3 = _mm_cmpgt_epi8(mask_3, x_3);
+         mask_4 = _mm_cmpgt_epi8(mask_4, x_4);
 
          x_1 = _mm_add_epi8(x_1, x_1);
          x_2 = _mm_add_epi8(x_2, x_2);
