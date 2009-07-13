@@ -8,7 +8,7 @@ CFLAGS=$(OPTFLAGS) $(DEBUGFLAGS) $(WARNINGS)
 
 PROGS = benchmark zfec test_recovery gen_test_vec
 
-all: $(PROGS)
+all: fecpp.so $(PROGS)
 
 libfecpp.a: fecpp.o
 	ar crs $@ $<
@@ -33,6 +33,9 @@ test_recovery: test/test_recovery.o libfecpp.a
 
 gen_test_vec: test/gen_test_vec.o libfecpp.a
 	$(CC) $(CFLAGS) $< -L. -lfecpp -o $@
+
+fecpp.so: fecpp.cpp fecpp_python.cpp fecpp.h
+	$(CC) -shared -fPIC $(CFLAGS) -I/usr/include/python2.5 fecpp.cpp fecpp_python.cpp -lboost_python -o fecpp.so
 
 clean:
 	rm -f *.a *.o test/*.o

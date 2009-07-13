@@ -1,0 +1,7 @@
+
+2009-??-??: 0.9
+ - Add Boost.Python wrapper
+ - Decoder would output blocks with share ids < k more than once
+
+2009-01-19: 0.8
+ - First public release

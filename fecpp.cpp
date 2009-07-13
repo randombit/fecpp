@@ -12,7 +12,17 @@
 #include <vector>
 #include <cstring>
 
+#if !defined(FECPP_USE_SSE2)
+
 #if defined(__SSE2__)
+  #define FECPP_USE_SSE2 0
+#else
+  #define FECPP_USE_SSE2 0
+#endif
+
+#endif
+
+#if FECPP_USE_SSE2
   #include <emmintrin.h>
 #endif
 
@@ -165,7 +175,7 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
 
    const byte* GF_MUL_Y = GF_MUL_TABLE[y];
 
-#if defined(__SSE2__)
+#if FECPP_USE_SSE2
 
    while(size && (uintptr_t)z % 16) // first align z to 16 bytes
       {
@@ -494,11 +504,8 @@ fec_code::fec_code(size_t K_arg, size_t N_arg) :
    {
    init_fec();
 
-   if(K > 256 || N > 256)
-      throw std::invalid_argument("fec_code: K and N must be < 256");
-
-   if(K > N)
-      throw std::invalid_argument("fec_code: K must be <= N");
+   if(K == 0 || N == 0 || K > 256 || N > 256 || K > N)
+      throw std::invalid_argument("fec_code: violated 1 <= K <= N <= 256");
 
    std::vector<byte> temp_matrix(N * K);
 
@@ -548,9 +555,6 @@ void fec_code::encode(
 
    size_t block_size = size / K;
 
-   for(size_t i = 0; i != K; ++i)
-      output(i, N, input + i*block_size, block_size);
-
 #if 1
    for(size_t i = 0; i != K; ++i)
       output(i, N, input + i*block_size, block_size);
@@ -566,6 +570,8 @@ void fec_code::encode(
       output(i, N, &fec_buf[0], fec_buf.size());
       }
 #else
+   for(size_t i = 0; i != K; ++i)
+      output(i, N, input + i*block_size, block_size);
 
    // align??
    std::vector<std::vector<byte> > fec_buf(N - K);

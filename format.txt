@@ -1,0 +1,89 @@
+
+Proposal for a standardized FEC format, with partial justifications why
+the current zfec format isn't cutting it.
+
+Header
+---------------
+
+- 4 bytes: magic number
+
+A magic number is useful for automated identification by applications.
+A canonical example would be file(1). Without such a magic number an
+application has to rely on other information (file extensions,
+user-provided information, blind guessing) to figure out how to
+process the file.
+
+The value I initially preferred was 0xFE 0xCC 0x0D 0xEC, which is the
+magic number used internally by Rizzo's FEC. Unfortunately this
+sequence is also a legal zfec header, which would mean it cannot be
+unambiguously parsed (though the use of n=255 is probably not high),
+assuming you are decoding zfec data. So instead we reverse the bytes
+(0xEC, 0x0D, 0xCC, 0xFE) which is not a legal zfec header, because as
+zfec would interpret this, the share number (0xFE) is greater than N
+(0xEC), so it "must" be a FEC file.
+
+- 2 bytes: chunk size in units of 1024 bytes (big endian)
+
+Currently zfec's encoding works splitting the file into chunks, K*4096
+bytes. This cannot be changed in the zfec format because there is no
+info in the header about it. In the future (or even now) (depending on
+characteristics of CPU, caches, memory, disks, and operating systems)
+it might be much faster to encode 16K, 32K or even larger chunks at a
+time, so why not let the encoder choose (if it wants).
+
+Supporting sub-kilobyte values does not seem particularly useful, and
+expressing it in 1 KiB units allows up to 64 MiB chunks, which seems
+more than sufficient.
+
+- 1 byte: N-1
+- 1 byte: K-1
+- 1 byte: share #
+
+Why use full byte for N, K, share#? My feeling is the bit packing
+scheme used by zfec is not worth it: saves only 2 bytes (at most) and
+makes it much harder/more bug prone to write and parse the header.
+
+- 1 byte: hash id
+
+0: no hash
+1: SHA-1
+2: SHA-256
+3: SHA-256d
+
+Allow error checking of recovered inputs
+
+Semantics of this are currently undefined.
+
+- 2 bytes: reserved (0)
+
+Round the header to 12 bytes, and leave some room for expansion.
+
+Trailing Padding
+----------
+
+zfec handles data that isn't a multiple of k bytes by adding
+sufficient number of 0 bytes. The number of bytes added is
+included in header.
+
+Problem: this requires knowing the length of the input prior to
+writing out the header. For files, this can be done (stat the file
+ahead of time) but it seems pretty inelegant. Also it doesn't deal at
+all well with streaming inputs.
+
+Instead, prior to encoding, form padding like so:
+
+0x80 0x00 0x00 [...] <HASH> <LENGTH>
+
+where <LENGTH> is a 2 byte big endian integer specifying the number of
+padding bytes.
+
+<HASH> is the hash of the entire plaintext
+
+The minimum number of 0x00 bytes are used to pad the total (input +
+0x80 + hash + 2 byte len + zeros) to a multiple of k bytes.
+
+Other thoughts
+-------------------
+Maybe a hash tree (for each share) would be more useful
+ - Don't want to replicate *too* much of Tahoe in this
+
