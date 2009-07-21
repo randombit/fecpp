@@ -38,5 +38,5 @@ fecpp.so: fecpp.cpp fecpp_python.cpp fecpp.h
 	$(CC) -shared -fPIC $(CFLAGS) -I/usr/include/python2.5 fecpp.cpp fecpp_python.cpp -lboost_python -o fecpp.so
 
 clean:
-	rm -f *.a *.o test/*.o
+	rm -f fecpp.so *.a *.o test/*.o
 	rm -f $(PROGS)
