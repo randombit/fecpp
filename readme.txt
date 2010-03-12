@@ -1,9 +1,9 @@
 
-FECpp
+FECpp 0.9, 2010-03-12
 Erasure codes based on Vandermonde matrices
 
 (C) 1996-1998 Luigi Rizzo (luigi@iet.unipi.it)
-(C) 2009 Jack Lloyd (lloyd@randombit.net)
+    2009-2010 Jack Lloyd (lloyd@randombit.net)
 See license.txt for other contributors.
 
 FECpp contains an implementation of an encoder/decoder for an erasure
@@ -16,7 +16,7 @@ producing bitwise identical results in all cases.
 
 PRINCIPLE OF OPERATION
 
-The encoded data is computer as
+The encoded data is computed as
 
 	y = E x
 
