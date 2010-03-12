@@ -158,6 +158,12 @@ int main()
    {
    std::ifstream testfile("tests.txt");
 
+   if(!testfile)
+      {
+      printf("Could not open input file\n");
+      return 1;
+      }
+
    int seed = time(0);
 
    //printf("Using %d as random seed\n", seed);
@@ -208,7 +214,9 @@ int main()
       if((int)blocks.size() != n)
          throw std::logic_error("Bad block count");
 
-      if(!check_recovery(k, n, input, blocks))
+      if(check_recovery(k, n, input, blocks))
+         printf("Good recovery %d %d\n", k, n);
+      else
          printf("Bad recovery %d %d\n", k, n);
       }
    }
