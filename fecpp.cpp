@@ -15,7 +15,7 @@
 #if !defined(FECPP_USE_SSE2)
 
 #if defined(__SSE2__)
-  #define FECPP_USE_SSE2 0
+  #define FECPP_USE_SSE2 1
 #else
   #define FECPP_USE_SSE2 0
 #endif
@@ -24,6 +24,7 @@
 
 #if FECPP_USE_SSE2
   #include <emmintrin.h>
+  #include <stdint.h>
 #endif
 
 namespace fecpp {
