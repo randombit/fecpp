@@ -1,3 +1,5 @@
+^benchmark$
+^zfec$
 ^gen_test_vec$
 ^test_fec$
 ^test_recovery$
