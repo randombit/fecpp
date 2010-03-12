@@ -48,7 +48,7 @@ makes it much harder/more bug prone to write and parse the header.
 0: no hash
 1: SHA-1
 2: SHA-256
-3: SHA-256d
+3: SHA-256d [SHA-256d(m) == SHA-256(SHA-256(m)]
 
 Allow error checking of recovered inputs
 
@@ -57,6 +57,9 @@ Semantics of this are currently undefined.
 - 2 bytes: reserved (0)
 
 Round the header to 12 bytes, and leave some room for expansion.
+
+If necessary this could be treated as a big-endian length field, with
+N following bytes being whatever extra information was needed.
 
 Trailing Padding
 ----------
@@ -72,18 +75,42 @@ all well with streaming inputs.
 
 Instead, prior to encoding, form padding like so:
 
-0x80 0x00 0x00 [...] <HASH> <LENGTH>
+0x80 0x00* <HASH> <LENGTH>
 
 where <LENGTH> is a 2 byte big endian integer specifying the number of
 padding bytes.
 
-<HASH> is the hash of the entire plaintext
+<HASH> is the hash of the entire plaintext, using whatever algorithm
+was specified in the header (if any).
 
 The minimum number of 0x00 bytes are used to pad the total (input +
 0x80 + hash + 2 byte len + zeros) to a multiple of k bytes.
 
-Other thoughts
--------------------
-Maybe a hash tree (for each share) would be more useful
- - Don't want to replicate *too* much of Tahoe in this
+The decoder then decodes the entire trailing block, and, knowing that
+it is looking at the final block, strip off the trailing bytes, saving
+the hash to compare with the final value.
 
+Other thoughts on hashing
+-------------------
+
+Doing a straight end-to-end hash of the plaintext would require
+processing the blocks in-order when decoding, which would require
+saving copies instead of emitting them and forgetting about them as
+soon as we find them.
+
+Instead, perhaps, a construction like this:
+
+H_i = H(share_i)
+
+Final H = H(H_1 || H_2 || ... || H_n)
+
+Which would require saving only the hash values instead of the entire
+input.
+
+This also offers reasonable parallelism opportunities, especially
+since the inputs (except possibly the last block) will all be the same
+size, so you can relatively easily do 4-way hashing on SIMD
+processors.
+
+As always, if hash_id=0 (no hash) is selected, this is all a no-op and
+the hash value placed in the trailer is empty.
