@@ -103,3 +103,4 @@ FUTURE WORK
 - Add more SIMD implementations, for instance AltiVec or the Cell SPU
 - Streaming interface
 - Progressive decoding (is that even possible?)
+- Allow use of different polynomials
