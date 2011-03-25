@@ -1,4 +1,9 @@
 
+????-??-??: ?.?
+ - Add an SSSE3 implementation of the core routine contributed by
+   Billy Brumley which is 2 to 3 times faster than the SSE2
+   implementation on Core i5/i7 processors.
+
 2010-03-12: 0.9
  - Add Boost.Python wrapper
  - Decoder would output blocks with share ids < k more than once
