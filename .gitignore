@@ -1,6 +1,6 @@
-^benchmark$
-^zfec$
-^gen_test_vec$
-^test_fec$
-^test_recovery$
-^tests.txt$
+benchmark
+zfec
+gen_test_vec
+test_fec
+test_recovery
+tests.txt

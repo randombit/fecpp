@@ -1,10 +1,5 @@
 
-FECpp 0.9, 2010-03-12
-Erasure codes based on Vandermonde matrices
-
-(C) 1996-1998 Luigi Rizzo (luigi@iet.unipi.it)
-    2009-2010 Jack Lloyd (lloyd@randombit.net)
-See license.txt for other contributors.
+FECpp: Erasure codes based on Vandermonde matrices
 
 FECpp contains an implementation of an encoder/decoder for an erasure
 code based on Vandermonde matrices computed over GF(2^8). It is based
@@ -14,7 +9,8 @@ on fec, by Luigi Rizzo, which is available at
 FECpp should be compatible with zfec (http://allmydata.org/trac/zfec),
 producing bitwise identical results in all cases.
 
-PRINCIPLE OF OPERATION
+Principle of Operation
+========================================
 
 The encoded data is computed as
 
@@ -41,7 +37,8 @@ the inversion cost can be amortized over the size of the packet.
 For practical applications (k and l as large as 30, packet sizes
 of 1KB) the cost can be neglected.
 
-USAGE
+API Usage
+========================================
 
 fecpp provides a single class, fec_code, which is declared in the
 header file fecpp.h
@@ -95,12 +92,13 @@ the case for encoding, but not for decoding, and later if
 multithreaded operations or OpenMP is used to parellize the encoding
 it is quite likely that shares will be provided out of order.
 
-FUTURE WORK
+Future Work / Todos / Send Patches
+========================================
 
-- Use threads or OpenMP
-- Investigate loop tiling and other matrix multiplication optimizations
-- Use a sliding window for the SSE2 multiplication
-- Add more SIMD implementations, for instance AltiVec or the Cell SPU
-- Streaming interface
-- Progressive decoding (is that even possible?)
-- Allow use of different polynomials
+ * Use threads or OpenMP
+ * Investigate loop tiling and other matrix multiplication optimizations
+ * Use a sliding window for the SSE2 multiplication
+ * Add more SIMD implementations, for instance AltiVec or the Cell SPU
+ * Streaming interface
+ * Progressive decoding (is that even possible?)
+ * Allow use of different polynomials
