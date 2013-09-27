@@ -4,3 +4,6 @@ gen_test_vec
 test_fec
 test_recovery
 tests.txt
+*.o
+*.a
+*.so
