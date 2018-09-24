@@ -2,13 +2,13 @@
  * Forward error correction based on Vandermonde matrices
  *
  * (C) 1997-1998 Luigi Rizzo (luigi@iet.unipi.it)
- * (C) 2009 Jack Lloyd (lloyd@randombit.net)
+ * (C) 2009 Jack Lloyd (jack@randombit.net)
  *
  * Distributed under the terms given in license.txt
  */
 
-#ifndef FECPP_H__
-#define FECPP_H__
+#ifndef FECPP_H_
+#define FECPP_H_
 
 #include <map>
 #include <vector>
@@ -21,6 +21,10 @@ using std::uint8_t;
 using std::size_t;
 
 using byte = std::uint8_t;
+
+#if defined(__i386__) || defined(__x86_64__)
+  #define FECPP_IS_X86
+#endif
 
 /**
 * Forward error correction code
@@ -62,6 +66,19 @@ class fec_code
       size_t K, N;
       std::vector<uint8_t> enc_matrix;
    };
+
+#if defined(FECPP_IS_X86)
+
+/**
+* CPU runtime detection
+*/
+bool has_sse2();
+bool has_ssse3();
+
+size_t addmul_sse2(uint8_t z[], const uint8_t x[], uint8_t y, size_t size);
+size_t addmul_ssse3(uint8_t z[], const uint8_t x[], uint8_t y, size_t size);
+
+#endif
 
 }
 

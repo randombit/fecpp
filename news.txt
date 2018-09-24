@@ -1,5 +1,7 @@
 
-????-??-??: ?.?
+2018-09-24: 0.10
+ - Convert to using C++11 instead of C++98 + TR1
+ - Add runtime detection for SSSE3
  - Add an SSSE3 implementation of the core routine contributed by
    Billy Brumley which is 2 to 3 times faster than the SSE2
    implementation on Core i5/i7 processors.
