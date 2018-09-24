@@ -48,11 +48,11 @@ generate n shares, any k of which will be sufficient to recover the
 original input.
 
 To encode, call fec_code's encode operation with a pointer to a
-buffer, a length, and a tr1::function which will be called for each
+buffer, a length, and a std::function which will be called for each
 output block:
 
 void encode(const byte input[], size_t size,
-   std::tr1::function<void (size_t, size_t, const byte[], size_t)> out) const
+   std::function<void (size_t, size_t, const byte[], size_t)> out) const
 
 The length of the input must be a multiple of k bytes.
 
@@ -68,7 +68,7 @@ To decode a set of shares into the original input, call decode:
 
 void decode(const std::map<size_t, const byte*>& shares,
             size_t share_size,
-   std::tr1::function<void (size_t, size_t, const byte[], size_t)> out) const
+   std::function<void (size_t, size_t, const byte[], size_t)> out) const
 
 The map of shares is a mapping from share identifier (the first
 parameter to the encoding callback) to the contents of the share. It
@@ -98,7 +98,7 @@ Future Work / Todos / Send Patches
  * Use threads or OpenMP
  * Investigate loop tiling and other matrix multiplication optimizations
  * Use a sliding window for the SSE2 multiplication
- * Add more SIMD implementations, for instance AltiVec or the Cell SPU
+ * Add support for NEON, AVX2, AVX-512, ...
  * Streaming interface
  * Progressive decoding (is that even possible?)
  * Allow use of different polynomials
