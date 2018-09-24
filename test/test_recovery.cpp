@@ -147,7 +147,7 @@ bool check_recovery(byte k, byte n, const std::string& hex_input,
       packets_map.erase(chooser.choose());
 
    // assumes all same size
-   code.decode(packets_map, packets[0].size(), std::tr1::ref(check_output));
+   code.decode(packets_map, packets[0].size(), std::ref(check_output));
 
    check_output.confirm();
 

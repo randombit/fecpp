@@ -125,13 +125,13 @@ void zfec_encode(size_t k, size_t n,
       size_t got = in.gcount();
 
       if(got == buf.size())
-         fec.encode(&buf[0], buf.size(), std::tr1::ref(file_writer));
+         fec.encode(&buf[0], buf.size(), std::ref(file_writer));
       else
          {
          // Handle final block by padding up to k bytes with 0s
          for(size_t i = 0; i != pad_bytes; ++i)
             buf[i+got] = 0;
-         fec.encode(&buf[0], got + pad_bytes, std::tr1::ref(file_writer));
+         fec.encode(&buf[0], got + pad_bytes, std::ref(file_writer));
          }
       }
    }

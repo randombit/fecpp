@@ -59,7 +59,7 @@ void benchmark_fec(size_t k, size_t n)
 
    save_to_map saver(share_len, shares);
 
-   fec.encode(&input[0], input.size(), std::tr1::ref(saver));
+   fec.encode(&input[0], input.size(), std::ref(saver));
 
    while(shares.size() > k)
       shares.erase(shares.begin());

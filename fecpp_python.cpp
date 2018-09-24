@@ -34,7 +34,7 @@ boost::python::list fec_encode(fec_code* code,
 
    code->encode(reinterpret_cast<const byte*>(input.c_str()),
                 input.size(),
-                std::tr1::ref(fec_saver));
+                std::ref(fec_saver));
 
    return fec_saver.get_results();
    }
@@ -67,7 +67,7 @@ boost::python::list fec_decode(fec_code* code,
 
    save_results fec_saver(code->get_K());
 
-   code->decode(shares, share_size, std::tr1::ref(fec_saver));
+   code->decode(shares, share_size, std::ref(fec_saver));
 
    return fec_saver.get_results();
    }
