@@ -12,13 +12,15 @@
 
 #include <map>
 #include <vector>
-#include <tr1/functional>
+#include <functional>
+#include <cstdint>
 
 namespace fecpp {
 
+using std::uint8_t;
 using std::size_t;
 
-typedef unsigned char byte;
+using byte = std::uint8_t;
 
 /**
 * Forward error correction code
@@ -42,8 +44,8 @@ class fec_code
       * @param out the output callback
       */
       void encode(
-         const byte input[], size_t size,
-         std::tr1::function<void (size_t, size_t, const byte[], size_t)> out)
+         const uint8_t input[], size_t size,
+         std::function<void (size_t, size_t, const uint8_t[], size_t)> out)
          const;
 
       /**
@@ -52,13 +54,13 @@ class fec_code
       * @param out the output callback
       */
       void decode(
-         const std::map<size_t, const byte*>& shares, size_t share_size,
-         std::tr1::function<void (size_t, size_t, const byte[], size_t)> out)
+         const std::map<size_t, const uint8_t*>& shares, size_t share_size,
+         std::function<void (size_t, size_t, const uint8_t[], size_t)> out)
          const;
 
    private:
       size_t K, N;
-      std::vector<byte> enc_matrix;
+      std::vector<uint8_t> enc_matrix;
    };
 
 }

@@ -41,7 +41,7 @@ namespace {
  * For efficiency, gf_exp[] has size 2*GF_SIZE, so that a simple
  * multiplication of two numbers can be resolved without calling mod
  */
-const byte GF_EXP[510] = {
+const uint8_t GF_EXP[510] = {
 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1D, 0x3A, 0x74,
 0xE8, 0xCD, 0x87, 0x13, 0x26, 0x4C, 0x98, 0x2D, 0x5A, 0xB4, 0x75,
 0xEA, 0xC9, 0x8F, 0x03, 0x06, 0x0C, 0x18, 0x30, 0x60, 0xC0, 0x9D,
@@ -92,7 +92,7 @@ const byte GF_EXP[510] = {
 0xB0, 0x7D, 0xFA, 0xE9, 0xCF, 0x83, 0x1B, 0x36, 0x6C, 0xD8, 0xAD,
 0x47, 0x8E };
 
-const byte GF_LOG[256] = {
+const uint8_t GF_LOG[256] = {
 0xFF, 0x00, 0x01, 0x19, 0x02, 0x32, 0x1A, 0xC6, 0x03, 0xDF, 0x33,
 0xEE, 0x1B, 0x68, 0xC7, 0x4B, 0x04, 0x64, 0xE0, 0x0E, 0x34, 0x8D,
 0xEF, 0x81, 0x1C, 0xC1, 0x69, 0xF8, 0xC8, 0x08, 0x4C, 0x71, 0x05,
@@ -118,7 +118,7 @@ const byte GF_LOG[256] = {
 0xD5, 0xE9, 0xE6, 0xE7, 0xAD, 0xE8, 0x74, 0xD6, 0xF4, 0xEA, 0xA8,
 0x50, 0x58, 0xAF };
 
-const byte GF_INVERSE[256] = {
+const uint8_t GF_INVERSE[256] = {
 0x00, 0x01, 0x8E, 0xF4, 0x47, 0xA7, 0x7A, 0xBA, 0xAD, 0x9D, 0xDD,
 0x98, 0x3D, 0xAA, 0x5D, 0x96, 0xD8, 0x72, 0xC0, 0x58, 0xE0, 0x3E,
 0x4C, 0x66, 0x90, 0xDE, 0x55, 0x80, 0xA0, 0x83, 0x4B, 0x2A, 0x6C,
@@ -144,7 +144,7 @@ const byte GF_INVERSE[256] = {
 0xB5, 0xEA, 0x03, 0x8F, 0xD3, 0xC9, 0x42, 0xD4, 0xE8, 0x75, 0x7F,
 0xFF, 0x7E, 0xFD };
 
-static byte GF_MUL_TABLE[256][256];
+static uint8_t GF_MUL_TABLE[256][256];
 
 #if defined (FECPP_USE_SSSE3)
 /*
@@ -154,7 +154,7 @@ static byte GF_MUL_TABLE[256][256];
  * b -> y(bx^4)
  * and the final output is the sum of these two outputs.
  */
-const byte GFTBL[] __attribute__((aligned(16))) = {
+const uint8_t GFTBL[] __attribute__((aligned(16))) = {
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
@@ -689,12 +689,12 @@ void init_fec()
 /*
 * addmul() computes z[] = z[] + x[] * y
 */
-void addmul(byte z[], const byte x[], byte y, size_t size)
+void addmul(uint8_t z[], const uint8_t x[], uint8_t y, size_t size)
    {
    if(y == 0)
       return;
 
-   const byte* GF_MUL_Y = GF_MUL_TABLE[y];
+   const uint8_t* GF_MUL_Y = GF_MUL_TABLE[y];
 
 #if defined(FECPP_USE_SSE2) || defined(FECPP_USE_SSSE3)
 
@@ -868,14 +868,14 @@ void addmul(byte z[], const byte x[], byte y, size_t size)
 * invert_matrix() takes a K*K matrix and produces its inverse
 * (Gauss-Jordan algorithm, adapted from Numerical Recipes in C)
 */
-void invert_matrix(byte matrix[], size_t K)
+void invert_matrix(uint8_t matrix[], size_t K)
    {
    class pivot_searcher
       {
       public:
          pivot_searcher(size_t K) : ipiv(K) {}
 
-         std::pair<size_t, size_t> operator()(size_t col, const byte* matrix)
+         std::pair<size_t, size_t> operator()(size_t col, const uint8_t* matrix)
             {
             const size_t K = ipiv.size();
 
@@ -911,7 +911,7 @@ void invert_matrix(byte matrix[], size_t K)
    pivot_searcher pivot_search(K);
    std::vector<size_t> indxc(K);
    std::vector<size_t> indxr(K);
-   std::vector<byte> id_row(K);
+   std::vector<uint8_t> id_row(K);
 
    for(size_t col = 0; col != K; ++col)
       {
@@ -938,8 +938,8 @@ void invert_matrix(byte matrix[], size_t K)
 
       indxr[col] = irow;
       indxc[col] = icol;
-      byte* pivot_row = &matrix[icol*K];
-      byte c = pivot_row[icol];
+      uint8_t* pivot_row = &matrix[icol*K];
+      uint8_t c = pivot_row[icol];
 
       if(c == 0)
          throw std::invalid_argument("singlar matrix");
@@ -953,7 +953,7 @@ void invert_matrix(byte matrix[], size_t K)
          c = GF_INVERSE[c];
          pivot_row[icol] = 1;
 
-         const byte* mul_c = GF_MUL_TABLE[c];
+         const uint8_t* mul_c = GF_MUL_TABLE[c];
 
          for(size_t i = 0; i != K; ++i)
             pivot_row[i] = mul_c[pivot_row[i]];
@@ -969,7 +969,7 @@ void invert_matrix(byte matrix[], size_t K)
       id_row[icol] = 1;
       if(memcmp(pivot_row, &id_row[0], K) != 0)
          {
-         byte* p = matrix;
+         uint8_t* p = matrix;
 
          for(size_t i = 0; i != K; ++i)
             {
@@ -1007,7 +1007,7 @@ void invert_matrix(byte matrix[], size_t K)
 * p = coefficients of the matrix (p_i)
 * q = values of the polynomial (known)
 */
-void create_inverted_vdm(byte vdm[], size_t K)
+void create_inverted_vdm(uint8_t vdm[], size_t K)
    {
    if(K == 1) /* degenerate case, matrix must be p^0 = 1 */
       {
@@ -1019,7 +1019,7 @@ void create_inverted_vdm(byte vdm[], size_t K)
    * c holds the coefficient of P(x) = Prod (x - p_i), i=0..K-1
    * b holds the coefficient for the matrix inversion
    */
-   std::vector<byte> b(K), c(K);
+   std::vector<uint8_t> b(K), c(K);
 
    /*
    * construct coeffs. recursively. We know c[K] = 1 (implicit)
@@ -1030,7 +1030,7 @@ void create_inverted_vdm(byte vdm[], size_t K)
    c[K-1] = 0; /* really -p(0), but x = -x in GF(2^m) */
    for(size_t i = 1; i < K; ++i)
       {
-      const byte* mul_p_i = GF_MUL_TABLE[GF_EXP[i]];
+      const uint8_t* mul_p_i = GF_MUL_TABLE[GF_EXP[i]];
 
       for(size_t j = K-1  - (i - 1); j < K-1; ++j)
          c[j] ^= mul_p_i[c[j+1]];
@@ -1040,9 +1040,9 @@ void create_inverted_vdm(byte vdm[], size_t K)
    for(size_t row = 0; row < K; ++row)
       {
       // synthetic division etc.
-      const byte* mul_p_row = GF_MUL_TABLE[row == 0 ? 0 : GF_EXP[row]];
+      const uint8_t* mul_p_row = GF_MUL_TABLE[row == 0 ? 0 : GF_EXP[row]];
 
-      byte t = 1;
+      uint8_t t = 1;
       b[K-1] = 1; /* this is in fact c[K] */
       for(int i = K-2; i >= 0; i--)
          {
@@ -1050,7 +1050,7 @@ void create_inverted_vdm(byte vdm[], size_t K)
          t = b[i] ^ mul_p_row[t];
          }
 
-      const byte* mul_t_inv = GF_MUL_TABLE[GF_INVERSE[t]];
+      const uint8_t* mul_t_inv = GF_MUL_TABLE[GF_INVERSE[t]];
       for(size_t col = 0; col != K; ++col)
          vdm[col*K + row] = mul_t_inv[b[col]];
       }
@@ -1075,7 +1075,7 @@ fec_code::fec_code(size_t K_arg, size_t N_arg) :
    if(K == 0 || N == 0 || K > 256 || N > 256 || K > N)
       throw std::invalid_argument("fec_code: violated 1 <= K <= N <= 256");
 
-   std::vector<byte> temp_matrix(N * K);
+   std::vector<uint8_t> temp_matrix(N * K);
 
    /*
    * quick code to build systematic matrix: invert the top
@@ -1100,9 +1100,9 @@ fec_code::fec_code(size_t K_arg, size_t N_arg) :
       {
       for(size_t col = 0; col != K; ++col)
          {
-         const byte* pa = &temp_matrix[row];
-         const byte* pb = &temp_matrix[col];
-         byte acc = 0;
+         const uint8_t* pa = &temp_matrix[row];
+         const uint8_t* pb = &temp_matrix[col];
+         uint8_t acc = 0;
          for(size_t i = 0; i < K; i++, pa++, pb += K)
             acc ^= GF_MUL_TABLE[*pa][*pb];
          enc_matrix[row + col] = acc;
@@ -1114,8 +1114,8 @@ fec_code::fec_code(size_t K_arg, size_t N_arg) :
 * FEC encoding routine
 */
 void fec_code::encode(
-   const byte input[], size_t size,
-   std::tr1::function<void (size_t, size_t, const byte[], size_t)> output)
+   const uint8_t input[], size_t size,
+   std::function<void (size_t, size_t, const uint8_t[], size_t)> output)
    const
    {
    if(size % K != 0)
@@ -1129,7 +1129,7 @@ void fec_code::encode(
 
    for(size_t i = K; i != N; ++i)
       {
-      std::vector<byte> fec_buf(block_size);
+      std::vector<uint8_t> fec_buf(block_size);
 
       for(size_t j = 0; j != K; ++j)
          addmul(&fec_buf[0], input + j*block_size,
@@ -1142,7 +1142,7 @@ void fec_code::encode(
       output(i, N, input + i*block_size, block_size);
 
    // align??
-   std::vector<std::vector<byte> > fec_buf(N - K);
+   std::vector<std::vector<uint8_t> > fec_buf(N - K);
 
    for(size_t i = 0; i != fec_buf.size(); ++i)
       fec_buf[i].resize(block_size);
@@ -1168,9 +1168,9 @@ void fec_code::encode(
 * FEC decoding routine
 */
 void fec_code::decode(
-   const std::map<size_t, const byte*>& shares,
+   const std::map<size_t, const uint8_t*>& shares,
    size_t share_size,
-   std::tr1::function<void (size_t, size_t, const byte[], size_t)> output) const
+   std::function<void (size_t, size_t, const uint8_t[], size_t)> output) const
    {
    /*
    Todo:
@@ -1184,19 +1184,19 @@ void fec_code::decode(
    if(shares.size() < K)
       throw std::logic_error("Could not decode, less than K surviving shares");
 
-   std::vector<byte> m_dec(K * K);
+   std::vector<uint8_t> m_dec(K * K);
    std::vector<size_t> indexes(K);
-   std::vector<const byte*> sharesv(K);
+   std::vector<const uint8_t*> sharesv(K);
 
-   std::map<size_t, const byte*>::const_iterator shares_b_iter =
+   std::map<size_t, const uint8_t*>::const_iterator shares_b_iter =
       shares.begin();
-   std::map<size_t, const byte*>::const_reverse_iterator shares_e_iter =
+   std::map<size_t, const uint8_t*>::const_reverse_iterator shares_e_iter =
       shares.rbegin();
 
    for(size_t i = 0; i != K; ++i)
       {
       size_t share_id = 0;
-      const byte* share_data = 0;
+      const uint8_t* share_data = 0;
 
       if(shares_b_iter->first == i)
          {
@@ -1243,7 +1243,7 @@ void fec_code::decode(
       {
       if(indexes[i] >= K)
          {
-         std::vector<byte> buf(share_size);
+         std::vector<uint8_t> buf(share_size);
          for(size_t col = 0; col != K; ++col)
             addmul(&buf[0], sharesv[col], m_dec[i*K + col], share_size);
          output(i, K, &buf[0], share_size);
