@@ -1,0 +1,18 @@
+language: cpp
+
+os:
+  - osx
+  - linux
+
+dist: xenial
+sudo: required
+
+compiler:
+  - clang
+  - gcc
+
+script:
+  - ./ci.sh
+
+cache:
+  ccache: true
