@@ -541,6 +541,8 @@ size_t addmul_ssse3(uint8_t z[], const uint8_t x[], uint8_t y, size_t size)
    const __m128i t_lo = _mm_load_si128((const __m128i*)(GFTBL + 32*y));
    const __m128i t_hi = _mm_load_si128((const __m128i*)(GFTBL + 32*y + 16));
 
+   const size_t consumed = size - (size % 16);
+
    while(size >= 16)
       {
       const __m128i x_1 = _mm_loadu_si128((const __m128i*)(x));
@@ -565,7 +567,7 @@ size_t addmul_ssse3(uint8_t z[], const uint8_t x[], uint8_t y, size_t size)
       size -= 16;
       }
 
-   return size;
+   return consumed;
    }
 
 }

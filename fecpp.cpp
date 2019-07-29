@@ -173,12 +173,20 @@ void addmul(uint8_t z[], const uint8_t x[], uint8_t y, size_t size)
 #if defined(FECPP_IS_X86)
    if(size >= 16 && has_ssse3())
       {
-      size = addmul_ssse3(z, x, y, size);
+      const size_t consumed = addmul_ssse3(z, x, y, size);
+      z += consumed;
+      x += consumed;
+      y += consumed;
+      size -= consumed;
       }
 
    if(size >= 64 && has_sse2())
       {
-      size = addmul_sse2(z, x, y, size);
+      const size_t consumed = addmul_sse2(z, x, y, size);
+      z += consumed;
+      x += consumed;
+      y += consumed;
+      size -= consumed;
       }
 #endif
 

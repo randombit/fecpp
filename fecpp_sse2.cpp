@@ -15,6 +15,8 @@ size_t addmul_sse2(uint8_t z[], const uint8_t x[], uint8_t y, size_t size)
 
    const size_t y_bits = 32 - __builtin_clz(y);
 
+   const size_t consumed = size - (size % 64);
+
    // unrolled out to cache line size
    while(size >= 64)
       {
@@ -94,7 +96,7 @@ size_t addmul_sse2(uint8_t z[], const uint8_t x[], uint8_t y, size_t size)
       size -= 64;
       }
 
-   return size;
+   return consumed;
    }
 
 }
