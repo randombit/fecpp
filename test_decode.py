@@ -1,9 +1,9 @@
 #!/usr/bin/python
 
-import fecpp
+import pyfecpp
 import random
 
-c = fecpp.fec_code(3,10)
+c = pyfecpp.fec_code(3,10)
 
 shares = c.encode('abcdef012345')
 

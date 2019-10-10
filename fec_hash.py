@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import fecpp as fec
+import pyfecpp as fec
 import md5
 
 k = 3
