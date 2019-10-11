@@ -72,7 +72,7 @@ boost::python::list fec_decode(fec_code* code,
    return fec_saver.get_results();
    }
 
-BOOST_PYTHON_MODULE(fecpp)
+BOOST_PYTHON_MODULE(pyfecpp)
    {
    boost::python::class_<fec_code>
       ("fec_code", boost::python::init<size_t, size_t>())
