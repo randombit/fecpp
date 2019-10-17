@@ -6,6 +6,15 @@ DEBUGFLAGS=-g
 
 CXXFLAGS=$(OPTFLAGS) $(DEBUGFLAGS) $(WARNINGS)
 
+HAVE_SSE2=$(shell grep sse2 /proc/cpuinfo)
+ifneq ($(HAVE_SSE2),)
+	CXXFLAGS += -msse2 -DHAVE_SSE2
+endif
+HAVE_SSSE3=$(shell grep ssse3 /proc/cpuinfo)
+ifneq ($(HAVE_SSSE3),)
+	CXXFLAGS += -mssse3 -DHAVE_SSSE3
+endif
+
 PROGS = benchmark zfec test_recovery gen_test_vec
 
 all: fecpp.so pyfecpp.so $(PROGS)
@@ -24,10 +33,10 @@ cpuid.o: cpuid.cpp fecpp.h
 	$(CXX) $(CXXFLAGS) -I. -c $< -o $@
 
 fecpp_sse2.o: fecpp_sse2.cpp fecpp.h
-	$(CXX) $(CXXFLAGS) -msse2 -I. -c $< -o $@
+	$(CXX) $(CXXFLAGS) -I. -c $< -o $@
 
 fecpp_ssse3.o: fecpp_ssse3.cpp fecpp.h
-	$(CXX) $(CXXFLAGS) -mssse3 -I. -c $< -o $@
+	$(CXX) $(CXXFLAGS) -I. -c $< -o $@
 
 test/%.o: test/%.cpp fecpp.h
 	$(CXX) $(CXXFLAGS) -I. -c $< -o $@
