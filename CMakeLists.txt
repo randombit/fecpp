@@ -1,3 +1,7 @@
+if ( NOT CMAKE_BUILD_TYPE )
+  set( CMAKE_BUILD_TYPE "Release" CACHE STRING "Build type: release, debug, relwithdebinfo" FORCE )
+endif()
+
 cmake_minimum_required( VERSION 3.2 )
 
 option( HAS_SSE2 "Compile for SSE2" ON )
@@ -12,7 +16,7 @@ if ( HAS_SSSE3 )
   add_definitions( -mssse3 )
   list( APPEND FECPP_SOURCES fecpp_ssse3.cpp )
 endif()
-list( APPEND CXX_FLAGS "-Wall -Wextra" )
+add_definitions( -Wall -Wextra -std=c++11 )
 
 add_library( fecpp-object OBJECT ${FECPP_SOURCES} )
 set_property( TARGET fecpp-object PROPERTY POSITION_INDEPENDENT_CODE ON )
@@ -26,7 +30,7 @@ if ( PYTHON2_FOUND )
   if ( Boost_FOUND )
     add_library( pyfecpp SHARED fecpp_python.cpp )
     target_include_directories( pyfecpp PUBLIC ${PYTHON2_INCLUDE_DIRS} )
-    target_link_libraries( pyfecpp fecpp ${Boost_LIBRARIES} ${PYTHON2_LIBRARIES} )
+    target_link_libraries( pyfecpp fecpp-static ${Boost_LIBRARIES} ${PYTHON2_LIBRARIES} )
     set_target_properties( pyfecpp PROPERTIES PREFIX "")
   else()
     message( WARN "boost_python library was not found. fecpp python library will not be built" )
@@ -50,4 +54,6 @@ target_link_libraries( zfec fecpp-static )
 
 install( TARGETS fecpp fecpp-static gen_test_vec test_recovery benchmark zfec pyfecpp
          ARCHIVE DESTINATION lib LIBRARY DESTINATION lib RUNTIME DESTINATION bin )
-install( FILES fec_hash.py DESTINATION "scripts" )
+install( FILES fec_hash.py test_decode.py
+         PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
+         DESTINATION bin )
