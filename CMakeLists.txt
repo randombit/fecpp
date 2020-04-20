@@ -3,6 +3,7 @@ if ( NOT CMAKE_BUILD_TYPE )
 endif()
 
 cmake_minimum_required( VERSION 3.2 )
+project( fecpp )
 
 option( HAS_SSE2 "Compile for SSE2" ON )
 option( HAS_SSSE3 "Compile for SSSE3" ON )
@@ -22,6 +23,7 @@ add_library( fecpp-object OBJECT ${FECPP_SOURCES} )
 set_property( TARGET fecpp-object PROPERTY POSITION_INDEPENDENT_CODE ON )
 add_library( fecpp-static STATIC $<TARGET_OBJECTS:fecpp-object> )
 add_library( fecpp        SHARED $<TARGET_OBJECTS:fecpp-object> )
+set_target_properties( fecpp PROPERTIES PUBLIC_HEADER fecpp.h )
 
 include( FindPkgConfig )
 pkg_check_modules( PYTHON2 python2 )
@@ -53,7 +55,8 @@ add_executable( zfec test/zfec.cpp )
 target_link_libraries( zfec fecpp-static )
 
 install( TARGETS fecpp fecpp-static gen_test_vec test_recovery benchmark zfec pyfecpp
-         ARCHIVE DESTINATION lib LIBRARY DESTINATION lib RUNTIME DESTINATION bin )
+         ARCHIVE DESTINATION lib LIBRARY DESTINATION lib RUNTIME DESTINATION bin
+         PUBLIC_HEADER DESTINATION include )
 install( FILES fec_hash.py test_decode.py
          PERMISSIONS OWNER_EXECUTE OWNER_WRITE OWNER_READ
          DESTINATION bin )
