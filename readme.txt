@@ -1,4 +1,13 @@
 
+NO LONGER MAINTAINED
+========================
+
+The same functionality as this library is available in Botan
+(https://github.com/randombit/botan) starting in 3.0.0
+
+THE OLD README ->
+===================
+
 FECpp: Erasure codes based on Vandermonde matrices
 
 FECpp contains an implementation of an encoder/decoder for an erasure
